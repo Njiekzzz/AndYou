@@ -35,8 +35,15 @@ export function OnboardingScreen() {
     setError('')
     try {
       await joinWall(joinCode.trim(), name.trim(), color)
-    } catch {
-      setError('Wall not found. Check the code and try again.')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('insufficient')) {
+        setError('Permission denied. Check your Firestore security rules allow unauthenticated reads.')
+      } else if (msg === 'Wall not found') {
+        setError('Wall not found. Check the code and try again.')
+      } else {
+        setError(`Error: ${msg}`)
+      }
     }
     setLoading(false)
   }

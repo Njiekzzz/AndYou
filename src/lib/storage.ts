@@ -51,3 +51,15 @@ export function saveTheme(theme: 'light' | 'dark') {
 export function loadTheme(): 'light' | 'dark' {
   return (localStorage.getItem(THEME_KEY) as 'light' | 'dark') || 'light'
 }
+
+const GOOGLE_UID_KEY = 'andyou_google_uid'
+
+export function saveGoogleUid(uid: string) {
+  localStorage.setItem(GOOGLE_UID_KEY, uid)
+}
+export function loadGoogleUid(): string | null {
+  return localStorage.getItem(GOOGLE_UID_KEY)
+}
+export function clearGoogleUid() {
+  localStorage.removeItem(GOOGLE_UID_KEY)
+}

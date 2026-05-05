@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { Avatar } from './Avatar'
+import { ProfileSheet } from './ProfileSheet'
 
 interface TopBarProps {
   onOpenSettings?: () => void
@@ -7,8 +9,10 @@ interface TopBarProps {
 
 export function TopBar({ onOpenSettings }: TopBarProps) {
   const { user, partner, toggleTheme, theme } = useApp()
+  const [profileOpen, setProfileOpen] = useState(false)
 
   return (
+    <>
     <div
       className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4"
       style={{
@@ -18,7 +22,11 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
         backdropFilter: 'blur(12px)',
       }}
     >
-      <div className="flex items-center gap-2">
+      <button
+        className="flex items-center gap-2"
+        onClick={() => setProfileOpen(true)}
+        style={{ background: 'none', padding: '4px 0' }}
+      >
         <div className="flex items-center" style={{ position: 'relative', width: user && partner ? 44 : 28 }}>
           {user && (
             <Avatar
@@ -46,7 +54,7 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
         >
           & you
         </span>
-      </div>
+      </button>
 
       <div className="flex items-center gap-2">
         {onOpenSettings && (
@@ -79,5 +87,7 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
         </button>
       </div>
     </div>
+    <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} />
+    </>
   )
 }

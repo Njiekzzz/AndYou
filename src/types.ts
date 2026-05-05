@@ -47,6 +47,12 @@ export interface Wall {
   created_at: string
 }
 
+export interface UserProfile {
+  uid: string
+  wallId: string
+  userId: string
+}
+
 export const AVATAR_COLORS = [
   '#c97b5a', // warm terracotta
   '#7b9e7b', // sage green

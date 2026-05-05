@@ -1,14 +1,16 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
   query, where, orderBy, onSnapshot, writeBatch,
 } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth'
+import { db, auth, googleProvider } from '../lib/firebase'
 import {
   saveUser, loadUser, saveWallId, loadWallId, saveWallCode,
   saveRegions, loadRegions, saveItems, loadItems, saveTheme, loadTheme,
+  saveGoogleUid, clearGoogleUid,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -20,6 +22,12 @@ const DEFAULT_REGIONS: Omit<Region, 'id' | 'wall_id'>[] = [
   { name: 'long term', order: 4, unlock_date: null },
 ]
 
+interface GoogleUser {
+  uid: string
+  email: string | null
+  displayName: string | null
+}
+
 interface AppContextType {
   user: User | null
   wall: Wall | null
@@ -30,6 +38,7 @@ interface AppContextType {
   theme: 'light' | 'dark'
   isLoading: boolean
   activeView: 'timeline' | 'list'
+  googleUser: GoogleUser | null
   setActiveView: (v: 'timeline' | 'list') => void
   toggleTheme: () => void
   createWall: (name: string, color: string) => Promise<string>
@@ -48,6 +57,8 @@ interface AppContextType {
   getItemReactions: (itemId: string) => Reaction[]
   getUserById: (id: string) => User | null
   usersInWall: User[]
+  signInWithGoogle: () => Promise<void>
+  signOutGoogle: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -74,6 +85,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>(loadTheme())
   const [isLoading, setIsLoading] = useState(true)
   const [activeView, setActiveView] = useState<'timeline' | 'list'>('timeline')
+  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
+  const googleUserRef = useRef<GoogleUser | null>(null)
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -98,6 +111,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, firebaseUser => {
+      if (firebaseUser) {
+        const gu: GoogleUser = { uid: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName }
+        setGoogleUser(gu)
+        googleUserRef.current = gu
+        saveGoogleUid(firebaseUser.uid)
+      } else {
+        setGoogleUser(null)
+        googleUserRef.current = null
+      }
+    })
+    return unsubscribe
+  }, [])
 
   const toggleTheme = useCallback(() => {
     setTheme(t => {
@@ -225,6 +253,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     batch.set(userDoc(wallId, userId), newUser)
     defaultRegions.forEach(r => batch.set(regionDoc(wallId, r.id), r))
     await batch.commit()
+    console.log('[createWall] Firestore write succeeded. wallId:', wallId, '| code:', code)
+
+    const gu = googleUserRef.current
+    if (gu) {
+      await setDoc(doc(db, 'user_profiles', gu.uid), { uid: gu.uid, wallId, userId })
+    }
 
     return code
   }, [setRegions])
@@ -234,6 +268,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const wallsSnap = await getDocs(
       query(collection(db, 'walls'), where('code', '==', code.toUpperCase()))
     )
+    console.log('[joinWall] code queried:', code.toUpperCase(), '| docs found:', wallsSnap.size)
     if (wallsSnap.empty) throw new Error('Wall not found')
 
     const wallData = wallsSnap.docs[0].data() as Wall
@@ -248,6 +283,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(newUser)
     setWall(wallData)
     setIsLoading(false)
+
+    const gu = googleUserRef.current
+    if (gu) {
+      await setDoc(doc(db, 'user_profiles', gu.uid), { uid: gu.uid, wallId: wallData.id, userId })
+    }
   }, [])
 
   const addItem = useCallback(async (itemData: Omit<BucketItem, 'id' | 'wall_id' | 'created_by' | 'created_at' | 'rotation_seed' | 'position'>): Promise<string> => {
@@ -262,9 +302,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       rotation_seed: Math.floor(Math.random() * 10000),
       position: maxPos + 1,
     }
-    // Update local state immediately so the sheet closes without waiting for the server
+    // Update local state immediately (blob URL is fine locally)
     setItems(prev => [...prev, newItem].sort((a, b) => a.position - b.position))
-    setDoc(itemDoc(wall.id, newItem.id), newItem).catch(err =>
+    // Strip local blob URLs before writing to Firestore so the partner can see the image
+    const firestoreItem: BucketItem = {
+      ...newItem,
+      image_url: newItem.image_url?.startsWith('blob:') ? null : newItem.image_url,
+    }
+    setDoc(itemDoc(wall.id, newItem.id), firestoreItem).catch(err =>
       console.error('Failed to save item to Firebase:', err)
     )
     return newItem.id
@@ -338,6 +383,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await batch.commit()
   }, [wall])
 
+  const signInWithGoogle = useCallback(async () => {
+    const result = await signInWithPopup(auth, googleProvider)
+    const uid = result.user.uid
+    const currentWallId = loadWallId()
+
+    const profileSnap = await getDoc(doc(db, 'user_profiles', uid))
+    if (profileSnap.exists() && !currentWallId) {
+      // Restore a previously saved wall
+      const profile = profileSnap.data() as UserProfile
+      const wallSnap = await getDoc(wallDoc(profile.wallId))
+      if (wallSnap.exists()) {
+        const loadedWall = wallSnap.data() as Wall
+        const usersSnap = await getDocs(usersCol(profile.wallId))
+        const wallUsers = usersSnap.docs.map(d => d.data() as User)
+        const savedUser = wallUsers.find(u => u.id === profile.userId)
+        if (savedUser) {
+          saveUser(savedUser)
+          saveWallId(profile.wallId)
+          saveWallCode(loadedWall.code)
+          setUser(savedUser)
+          setWall(loadedWall)
+          setUsersInWall(wallUsers)
+          setPartner(wallUsers.find(u => u.id !== savedUser.id) ?? null)
+        }
+      }
+    } else if (wall && user) {
+      // Link the current wall to this Google account
+      await setDoc(doc(db, 'user_profiles', uid), { uid, wallId: wall.id, userId: user.id })
+    }
+  }, [wall, user])
+
+  const signOutGoogle = useCallback(async () => {
+    await firebaseSignOut(auth)
+    clearGoogleUid()
+  }, [])
+
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -363,11 +444,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, wall, partner, items, regions, reactions, theme, isLoading, activeView,
+      user, wall, partner, items, regions, reactions, theme, isLoading, activeView, googleUser,
       setActiveView, toggleTheme, createWall, joinWall, addItem, updateItem,
       commitItem, completeItem, deleteItem, toggleHeart, setRating,
       updateRegion, addRegion, reorderRegions, uploadImage,
       getItemReactions, getUserById, usersInWall,
+      signInWithGoogle, signOutGoogle,
     }}>
       {children}
     </AppContext.Provider>
