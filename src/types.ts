@@ -61,6 +61,25 @@ export interface SavedWall {
   color: string
 }
 
+export interface DrawingStroke {
+  id: string
+  userId: string
+  d: string
+  color: string
+  width: number
+}
+
+export interface WallSticker {
+  id: string
+  userId: string
+  type: 'heart' | 'star' | 'sparkle' | 'flower'
+  x: number
+  y: number
+  size: number
+  rotation: number
+  color: string
+}
+
 export const AVATAR_COLORS = [
   '#c97b5a', // warm terracotta
   '#7b9e7b', // sage green

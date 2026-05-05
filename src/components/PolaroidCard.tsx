@@ -24,7 +24,8 @@ export const THREAD_LENGTH_EXPORT = THREAD_LENGTH
 
 export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: PolaroidCardProps) {
   const { getUserById } = useApp()
-  const [isFlipped, setIsFlipped] = useState(false)
+  // Show real photo by default when done — it's what matters most
+  const [isFlipped, setIsFlipped] = useState(item.status === 'done' && !!item.real_image_url)
   const rotation = getRotationFromSeed(item.rotation_seed)
   const creator = getUserById(item.created_by)
 
@@ -169,27 +170,29 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
             </div>
           )}
 
-          {/* Done stamp */}
+          {/* Done stamp — rubber stamp style */}
           {isDone && (
             <div
               className="stamp-animate"
               style={{
                 position: 'absolute',
-                top: 6,
-                right: 6,
-                width: 24,
-                height: 24,
+                top: 4,
+                right: 4,
+                width: 38,
+                height: 38,
                 borderRadius: '50%',
-                border: '2px solid #4a8a4a',
+                border: '2px solid rgba(74,138,74,0.9)',
+                boxShadow: 'inset 0 0 0 1px rgba(74,138,74,0.35)',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(255,255,255,0.85)',
+                background: 'rgba(255,255,255,0.92)',
+                transform: 'rotate(-10deg)',
               }}
             >
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4l3 3 5-6" stroke="#4a8a4a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <span style={{ fontSize: 5, letterSpacing: '0.15em', color: '#4a8a4a', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>DONE</span>
+              <span style={{ fontSize: 12, color: '#4a8a4a', lineHeight: 1.1 }}>✓</span>
             </div>
           )}
 

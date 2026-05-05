@@ -11,7 +11,7 @@ import {
   saveGoogleUid, clearGoogleUid,
   clearUser, clearWallId, loadSavedWalls, addToSavedWalls, removeFromSavedWalls,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -64,6 +64,12 @@ interface AppContextType {
   switchWall: (wallId: string) => Promise<void>
   leaveWall: () => Promise<void>
   kickPartner: () => Promise<void>
+  strokes: DrawingStroke[]
+  stickers: WallSticker[]
+  addStroke: (data: Omit<DrawingStroke, 'id' | 'userId'>) => Promise<void>
+  removeStroke: (id: string) => Promise<void>
+  addSticker: (data: Omit<WallSticker, 'id' | 'userId'>) => Promise<void>
+  removeSticker: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -78,6 +84,10 @@ const usersCol = (wallId: string) => collection(db, 'walls', wallId, 'users')
 const userDoc = (wallId: string, userId: string) => doc(db, 'walls', wallId, 'users', userId)
 const reactionsCol = (wallId: string) => collection(db, 'walls', wallId, 'reactions')
 const reactionDoc = (wallId: string, reactionId: string) => doc(db, 'walls', wallId, 'reactions', reactionId)
+const strokesCol = (wallId: string) => collection(db, 'walls', wallId, 'strokes')
+const strokeDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'strokes', id)
+const stickersCol = (wallId: string) => collection(db, 'walls', wallId, 'stickers')
+const stickerDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'stickers', id)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser())
@@ -93,6 +103,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
   const googleUserRef = useRef<GoogleUser | null>(null)
   const [savedWalls, setSavedWalls] = useState<SavedWall[]>(loadSavedWalls())
+  const [strokes, setStrokes] = useState<DrawingStroke[]>([])
+  const [stickers, setStickers] = useState<WallSticker[]>([])
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -223,12 +235,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     )
 
+    const strokesUnsub = onSnapshot(strokesCol(wallId), snap => {
+      setStrokes(snap.docs.map(d => d.data() as DrawingStroke))
+    })
+
+    const stickersUnsub = onSnapshot(stickersCol(wallId), snap => {
+      setStickers(snap.docs.map(d => d.data() as WallSticker))
+    })
+
     setIsLoading(false)
 
     return () => {
       itemsUnsub()
       regionsUnsub()
       reactionsUnsub()
+      strokesUnsub()
+      stickersUnsub()
     }
   }, [user, setItems, setRegions])
 
@@ -474,6 +496,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearGoogleUid()
   }, [])
 
+  const addStroke = useCallback(async (data: Omit<DrawingStroke, 'id' | 'userId'>) => {
+    if (!wall || !user) return
+    const s: DrawingStroke = { ...data, id: uuidv4(), userId: user.id }
+    await setDoc(strokeDoc(wall.id, s.id), s)
+  }, [wall, user])
+
+  const removeStroke = useCallback(async (id: string) => {
+    if (!wall) return
+    await deleteDoc(strokeDoc(wall.id, id))
+  }, [wall])
+
+  const addSticker = useCallback(async (data: Omit<WallSticker, 'id' | 'userId'>) => {
+    if (!wall || !user) return
+    const s: WallSticker = { ...data, id: uuidv4(), userId: user.id }
+    await setDoc(stickerDoc(wall.id, s.id), s)
+  }, [wall, user])
+
+  const removeSticker = useCallback(async (id: string) => {
+    if (!wall) return
+    await deleteDoc(stickerDoc(wall.id, id))
+  }, [wall])
+
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -505,6 +549,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateRegion, addRegion, reorderRegions, uploadImage,
       getItemReactions, getUserById, usersInWall,
       signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner,
+      strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
     }}>
       {children}
     </AppContext.Provider>
