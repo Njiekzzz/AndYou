@@ -1,10 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, onSnapshot, writeBatch, Timestamp,
+  query, where, orderBy, onSnapshot, writeBatch,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../lib/firebase'
+import { db } from '../lib/firebase'
 import {
   saveUser, loadUser, saveWallId, loadWallId, saveWallCode,
   saveRegions, loadRegions, saveItems, loadItems, saveTheme, loadTheme,
@@ -340,13 +339,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [wall])
 
   const uploadImage = useCallback(async (file: File): Promise<string> => {
-    if (!wall) return URL.createObjectURL(file)
-    const ext = file.name.split('.').pop()
-    const path = `${wall.id}/${uuidv4()}.${ext}`
-    const storageRef = ref(storage, path)
-    await uploadBytes(storageRef, file)
-    return getDownloadURL(storageRef)
-  }, [wall])
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', uploadPreset)
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) throw new Error('Image upload failed')
+    const data = await res.json()
+    return data.secure_url as string
+  }, [])
 
   const getItemReactions = useCallback((itemId: string) => {
     return reactions[itemId] ?? []
