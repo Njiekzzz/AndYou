@@ -263,9 +263,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       rotation_seed: Math.floor(Math.random() * 10000),
       position: maxPos + 1,
     }
-    await setDoc(itemDoc(wall.id, newItem.id), newItem)
+    // Update local state immediately so the sheet closes without waiting for the server
+    setItems(prev => [...prev, newItem].sort((a, b) => a.position - b.position))
+    setDoc(itemDoc(wall.id, newItem.id), newItem).catch(err =>
+      console.error('Failed to save item to Firebase:', err)
+    )
     return newItem.id
-  }, [user, wall, items])
+  }, [user, wall, items, setItems])
 
   const updateItem = useCallback(async (id: string, updates: Partial<BucketItem>) => {
     if (!wall) return
