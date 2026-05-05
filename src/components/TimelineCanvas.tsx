@@ -132,7 +132,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         forceUpdate(n => n + 1)
       } else if (activeTool === 'sticker') {
         const rot = Math.round(Math.random() * 24 - 12)
-        addSticker({ type: activeStickerType, x: canvasX, y: canvasY, size: 40, rotation: rot, color: activeColor })
+        addSticker({ type: activeStickerType as 'heart' | 'star' | 'sparkle' | 'flower', x: canvasX, y: canvasY, size: 40, rotation: rot, color: activeColor })
       }
       return
     }
