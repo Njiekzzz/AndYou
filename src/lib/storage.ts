@@ -1,4 +1,4 @@
-import { User, Region, BucketItem } from '../types'
+import { User, Region, BucketItem, SavedWall } from '../types'
 
 const USER_KEY = 'andyou_user'
 const WALL_KEY = 'andyou_wall'
@@ -62,4 +62,27 @@ export function loadGoogleUid(): string | null {
 }
 export function clearGoogleUid() {
   localStorage.removeItem(GOOGLE_UID_KEY)
+}
+
+export function clearUser() { localStorage.removeItem(USER_KEY) }
+export function clearWallId() { localStorage.removeItem(WALL_KEY) }
+
+const SAVED_WALLS_KEY = 'andyou_saved_walls'
+
+export function loadSavedWalls(): SavedWall[] {
+  const raw = localStorage.getItem(SAVED_WALLS_KEY)
+  return raw ? JSON.parse(raw) : []
+}
+
+export function saveSavedWalls(walls: SavedWall[]) {
+  localStorage.setItem(SAVED_WALLS_KEY, JSON.stringify(walls))
+}
+
+export function addToSavedWalls(wall: SavedWall) {
+  const current = loadSavedWalls()
+  saveSavedWalls([...current.filter(w => w.wallId !== wall.wallId), wall])
+}
+
+export function removeFromSavedWalls(wallId: string) {
+  saveSavedWalls(loadSavedWalls().filter(w => w.wallId !== wallId))
 }

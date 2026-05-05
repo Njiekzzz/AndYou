@@ -9,8 +9,9 @@ import {
   saveUser, loadUser, saveWallId, loadWallId, saveWallCode,
   saveRegions, loadRegions, saveItems, loadItems, saveTheme, loadTheme,
   saveGoogleUid, clearGoogleUid,
+  clearUser, clearWallId, loadSavedWalls, addToSavedWalls, removeFromSavedWalls,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -39,6 +40,7 @@ interface AppContextType {
   isLoading: boolean
   activeView: 'timeline' | 'list'
   googleUser: GoogleUser | null
+  savedWalls: SavedWall[]
   setActiveView: (v: 'timeline' | 'list') => void
   toggleTheme: () => void
   createWall: (name: string, color: string) => Promise<string>
@@ -59,6 +61,9 @@ interface AppContextType {
   usersInWall: User[]
   signInWithGoogle: () => Promise<void>
   signOutGoogle: () => Promise<void>
+  switchWall: (wallId: string) => Promise<void>
+  leaveWall: () => Promise<void>
+  kickPartner: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -87,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeView, setActiveView] = useState<'timeline' | 'list'>('timeline')
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
   const googleUserRef = useRef<GoogleUser | null>(null)
+  const [savedWalls, setSavedWalls] = useState<SavedWall[]>(loadSavedWalls())
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -255,6 +261,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await batch.commit()
     console.log('[createWall] Firestore write succeeded. wallId:', wallId, '| code:', code)
 
+    addToSavedWalls({ wallId, wallCode: code, userId, name, color })
+    setSavedWalls(loadSavedWalls())
+
     const gu = googleUserRef.current
     if (gu) {
       await setDoc(doc(db, 'user_profiles', gu.uid), { uid: gu.uid, wallId, userId })
@@ -283,6 +292,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(newUser)
     setWall(wallData)
     setIsLoading(false)
+
+    addToSavedWalls({ wallId: wallData.id, wallCode: wallData.code, userId, name, color })
+    setSavedWalls(loadSavedWalls())
 
     const gu = googleUserRef.current
     if (gu) {
@@ -383,6 +395,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await batch.commit()
   }, [wall])
 
+  const switchWall = useCallback(async (targetWallId: string) => {
+    const saved = loadSavedWalls().find(w => w.wallId === targetWallId)
+    if (!saved) return
+    setItems([])
+    setRegions([])
+    setPartner(null)
+    setWall(null)
+    setIsLoading(true)
+    const newUser: User = { id: saved.userId, wall_id: saved.wallId, name: saved.name, avatar_color: saved.color }
+    saveWallId(saved.wallId)
+    saveUser(newUser)
+    setUser(newUser)
+  }, [setItems, setRegions])
+
+  const leaveWall = useCallback(async () => {
+    if (!wall || !user) return
+    deleteDoc(userDoc(wall.id, user.id)).catch(() => {})
+    const gu = googleUserRef.current
+    if (gu) {
+      getDoc(doc(db, 'user_profiles', gu.uid)).then(snap => {
+        if (snap.exists() && (snap.data() as UserProfile).wallId === wall.id) {
+          deleteDoc(doc(db, 'user_profiles', gu.uid)).catch(() => {})
+        }
+      }).catch(() => {})
+    }
+    clearWallId()
+    clearUser()
+    removeFromSavedWalls(wall.id)
+    setWall(null)
+    setPartner(null)
+    setItems([])
+    setRegions([])
+    setSavedWalls(loadSavedWalls())
+    setUser(null)
+  }, [wall, user, setItems, setRegions])
+
+  const kickPartner = useCallback(async () => {
+    if (!partner || !wall) return
+    await deleteDoc(userDoc(wall.id, partner.id))
+    setPartner(null)
+    setUsersInWall(prev => prev.filter(u => u.id !== partner.id))
+  }, [partner, wall])
+
   const signInWithGoogle = useCallback(async () => {
     const result = await signInWithPopup(auth, googleProvider)
     const uid = result.user.uid
@@ -444,12 +499,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, wall, partner, items, regions, reactions, theme, isLoading, activeView, googleUser,
+      user, wall, partner, items, regions, reactions, theme, isLoading, activeView, googleUser, savedWalls,
       setActiveView, toggleTheme, createWall, joinWall, addItem, updateItem,
       commitItem, completeItem, deleteItem, toggleHeart, setRating,
       updateRegion, addRegion, reorderRegions, uploadImage,
       getItemReactions, getUserById, usersInWall,
-      signInWithGoogle, signOutGoogle,
+      signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner,
     }}>
       {children}
     </AppContext.Provider>

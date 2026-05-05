@@ -57,26 +57,31 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
       isAbove: boolean
       regionId: string
     }[] = []
-    const regionBoundaries: { region: Region; startX: number; endX: number }[] = []
+    const regionBoundaries: { region: Region; startX: number; endX: number; labelX: number }[] = []
     let globalIndex = 0
 
     sorted.forEach(region => {
       const regionStart = x
       const regionItemList = regionItems[region.id] ?? []
+      let labelX: number
 
       if (regionItemList.length === 0) {
+        labelX = regionStart + (REGION_LABEL_WIDTH + REGION_PADDING) / 2
         x += REGION_LABEL_WIDTH + REGION_PADDING
       } else {
+        const firstItemX = x
         regionItemList.forEach(item => {
           const isAbove = globalIndex % 2 === 0
           result.push({ item, x, isAbove, regionId: region.id })
           x += CARD_WIDTH + ITEM_SPACING
           globalIndex++
         })
+        // Center label over the span of cards (not including trailing padding)
+        labelX = firstItemX + (regionItemList.length - 1) * (CARD_WIDTH + ITEM_SPACING) / 2 + CARD_WIDTH / 2
         x += REGION_PADDING
       }
 
-      regionBoundaries.push({ region, startX: regionStart, endX: x })
+      regionBoundaries.push({ region, startX: regionStart, endX: x, labelX })
     })
 
     const totalWidth = x + REGION_PADDING
@@ -207,7 +212,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         bottom: 64,
         overflow: 'hidden',
         cursor: isDragging.current ? 'grabbing' : 'grab',
-        background: 'var(--bg)',
+        backgroundColor: 'var(--bg)',
         touchAction: 'none',
       }}
       onPointerDown={onPointerDown}
@@ -242,66 +247,60 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         />
 
         {/* Region labels and dividers */}
-        {regionBoundaries.map(({ region, startX, endX }) => {
-          const midX = (startX + endX) / 2
-          return (
-            <div key={region.id}>
-              {/* Vertical divider at region start */}
-              {startX > REGION_PADDING && (
-                <>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: stringY - 60,
-                      left: startX - REGION_PADDING / 2,
-                      width: 0.5,
-                      height: 120,
-                      background: 'var(--string-color)',
-                      opacity: 0.07,
-                    }}
-                  />
-                  {/* Nail dot */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: stringY - NAIL_RADIUS,
-                      left: startX - REGION_PADDING / 2 - NAIL_RADIUS,
-                      width: NAIL_RADIUS * 2,
-                      height: NAIL_RADIUS * 2,
-                      borderRadius: '50%',
-                      background: 'var(--nail-color)',
-                      opacity: 0.5,
-                    }}
-                  />
-                </>
-              )}
+        {regionBoundaries.map(({ region, startX, labelX }) => (
+          <div key={region.id}>
+            {/* Vertical divider at region start */}
+            {startX > REGION_PADDING && (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: stringY - 60,
+                    left: startX - REGION_PADDING / 2,
+                    width: 0.5,
+                    height: 120,
+                    background: 'var(--string-color)',
+                    opacity: 0.07,
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: stringY - NAIL_RADIUS,
+                    left: startX - REGION_PADDING / 2 - NAIL_RADIUS,
+                    width: NAIL_RADIUS * 2,
+                    height: NAIL_RADIUS * 2,
+                    borderRadius: '50%',
+                    background: 'var(--nail-color)',
+                    opacity: 0.5,
+                  }}
+                />
+              </>
+            )}
 
-              {/* Masking tape label */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: stringY - 80,
-                  left: midX - REGION_LABEL_WIDTH / 2,
-                  width: REGION_LABEL_WIDTH,
-                  padding: '3px 8px',
-                  background: 'var(--tape-bg)',
-                  color: 'var(--tape-text)',
-                  fontSize: 9,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.12em',
-                  textAlign: 'center',
-                  transform: `rotate(${region.order % 2 === 0 ? -1.2 : 1.0}deg)`,
-                  pointerEvents: 'none',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {region.name}
-              </div>
+            {/* Masking tape label — sits just above the string, above cards */}
+            <div
+              style={{
+                position: 'absolute',
+                top: stringY - 22,
+                left: labelX,
+                padding: '3px 8px',
+                background: 'var(--tape-bg)',
+                color: 'var(--tape-text)',
+                fontSize: 9,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                textAlign: 'center',
+                transform: `translateX(-50%) rotate(${region.order % 2 === 0 ? -1.2 : 1.0}deg)`,
+                pointerEvents: 'none',
+                whiteSpace: 'nowrap',
+                zIndex: 10,
+              }}
+            >
+              {region.name}
             </div>
-          )
-        })}
+          </div>
+        ))}
 
         {/* Polaroid cards */}
         {laid.map(({ item, x, isAbove, regionId }) => {
