@@ -21,8 +21,8 @@
     "vite": "^8.0.10"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.3",
     "@tailwindcss/vite": "^4.2.4",
+    "firebase": "^12.12.1",
     "framer-motion": "^12.38.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
