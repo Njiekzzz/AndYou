@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BucketItem } from '../types'
+import { BucketItem, ITEM_THEMES, ItemTheme } from '../types'
 import { useApp } from '../context/AppContext'
 import { getRotationFromSeed } from '../lib/rotation'
 import { Avatar } from './Avatar'
@@ -174,7 +174,7 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
               {creator && <Avatar name={creator.name} color={creator.avatar_color} size={24} />}
             </div>
 
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
               {region && (
                 <span style={{ fontSize: 10, background: 'var(--tape-bg)', color: 'var(--tape-text)', padding: '2px 7px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   {region.name}
@@ -188,6 +188,19 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
               }}>
                 {liveItem.mood}
               </span>
+              {liveItem.theme && ITEM_THEMES[liveItem.theme as ItemTheme] && (() => {
+                const t = ITEM_THEMES[liveItem.theme as ItemTheme]
+                return (
+                  <span style={{
+                    fontSize: 10, padding: '2px 7px', borderRadius: 3,
+                    border: `1px solid ${t.borderColor}`,
+                    color: t.borderColor,
+                    letterSpacing: '0.08em',
+                  }}>
+                    {t.emoji} {t.label}
+                  </span>
+                )
+              })()}
             </div>
 
             {liveItem.description && (

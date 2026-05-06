@@ -49,10 +49,15 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
           )}
         </div>
         <span
-          className="text-base font-light tracking-widest"
-          style={{ color: 'var(--text-primary)' }}
+          style={{
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: 22,
+            letterSpacing: '-0.01em',
+            lineHeight: 1,
+            color: 'var(--text-primary)',
+          }}
         >
-          & you
+          <span style={{ fontStyle: 'italic', color: '#c8745a' }}>&</span>you
         </span>
       </button>
 

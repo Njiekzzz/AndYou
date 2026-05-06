@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { BucketItem } from '../types'
+import { BucketItem, ITEM_THEMES, ItemTheme } from '../types'
 import { getRotationFromSeed } from '../lib/rotation'
 import { useApp } from '../context/AppContext'
 import { Avatar } from './Avatar'
@@ -23,11 +23,19 @@ export const CARD_WIDTH_EXPORT = CARD_WIDTH
 export const THREAD_LENGTH_EXPORT = THREAD_LENGTH
 
 export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: PolaroidCardProps) {
-  const { getUserById } = useApp()
+  const { user, getUserById, getItemReactions } = useApp()
   // Show real photo by default when done — it's what matters most
   const [isFlipped, setIsFlipped] = useState(item.status === 'done' && !!item.real_image_url)
   const rotation = getRotationFromSeed(item.rotation_seed)
   const creator = getUserById(item.created_by)
+
+  const reactions = getItemReactions(item.id)
+  const myReaction = reactions.find(r => r.user_id === user?.id)
+  const partnerReaction = reactions.find(r => r.user_id !== user?.id)
+  const myRating = myReaction?.rating ?? 0
+  const partnerRating = partnerReaction?.rating ?? 0
+
+  const themeConfig = item.theme ? ITEM_THEMES[item.theme as ItemTheme] : null
 
   const cardHeight = CARD_PADDING * 2 + CARD_PHOTO_HEIGHT + CARD_CAPTION_HEIGHT
 
@@ -89,6 +97,8 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           flexShrink: 0,
           position: 'relative',
           filter: isLocked ? 'blur(1.5px)' : 'none',
+          outline: themeConfig ? `2px solid ${themeConfig.borderColor}` : undefined,
+          outlineOffset: '0px',
         }}
         className={`polaroid-shadow ${!isLocked ? 'polaroid-shadow-hover' : ''} no-select`}
       >
@@ -261,12 +271,38 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
               lineHeight: 1.3,
               overflow: 'hidden',
               display: '-webkit-box',
-              WebkitLineClamp: 2,
+              WebkitLineClamp: myRating > 0 || partnerRating > 0 ? 1 : 2,
               WebkitBoxOrient: 'vertical',
             }}
           >
             {item.title}
           </div>
+          {(myRating > 0 || partnerRating > 0) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 3 }}>
+              {myRating > 0 && (
+                <div style={{ display: 'flex', gap: 1.5 }}>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <div key={i} style={{
+                      width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+                      background: i < myRating ? 'var(--text-primary)' : 'transparent',
+                      border: '1px solid var(--border)',
+                    }} />
+                  ))}
+                </div>
+              )}
+              {partnerRating > 0 && (
+                <div style={{ display: 'flex', gap: 1.5 }}>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <div key={i} style={{
+                      width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
+                      background: i < partnerRating ? 'var(--text-secondary)' : 'transparent',
+                      border: '1px solid var(--border)',
+                    }} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
 

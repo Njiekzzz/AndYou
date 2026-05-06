@@ -2,13 +2,13 @@
   <rect width="1024" height="1024" fill="#f6f4ef"/>
   <g transform="translate(192, 372)">
     <defs>
-      <clipPath id="lens">
+      <clipPath id="lensA">
         <path d="M 320 0 a 160 160 0 0 1 0 320 a 160 160 0 0 1 0 -320 z"/>
       </clipPath>
     </defs>
     <circle cx="213" cy="160" r="160" fill="#c69a4a"/>
     <circle cx="427" cy="160" r="160" fill="#c8745a"/>
-    <g clip-path="url(#lens)">
+    <g clip-path="url(#lensA)">
       <rect x="0" y="0" width="640" height="320" fill="#a6602f"/>
     </g>
     <text x="320" y="225" text-anchor="middle"

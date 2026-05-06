@@ -1,5 +1,21 @@
 export type ItemStatus = 'proposed' | 'committed' | 'done'
 export type ItemMood = 'online' | 'physical'
+export type ItemTheme = 'adventure' | 'splurge' | 'spicy' | 'cozy' | 'experience' | 'other'
+
+export interface ThemeConfig {
+  label: string
+  emoji: string
+  borderColor: string
+}
+
+export const ITEM_THEMES: Record<ItemTheme, ThemeConfig> = {
+  adventure:  { label: 'Adventure',  emoji: '🏔️', borderColor: '#6b9e7e' },
+  splurge:    { label: 'Splurge',    emoji: '💸', borderColor: '#c69a4a' },
+  spicy:      { label: 'Spicy',      emoji: '🌶️', borderColor: '#c94a6a' },
+  cozy:       { label: 'Cozy',       emoji: '🌙', borderColor: '#b59fc0' },
+  experience: { label: 'Experience', emoji: '🎉', borderColor: '#7baab5' },
+  other:      { label: 'Other',      emoji: '✨', borderColor: '#9a9488' },
+}
 
 export interface Region {
   id: string
@@ -19,6 +35,7 @@ export interface BucketItem {
   real_image_url: string | null
   location: string | null
   mood: ItemMood
+  theme?: ItemTheme | null
   region_id: string
   status: ItemStatus
   position: number

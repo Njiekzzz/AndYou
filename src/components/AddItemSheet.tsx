@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { ItemMood, ItemStatus } from '../types'
+import { ItemMood, ItemStatus, ItemTheme, ITEM_THEMES } from '../types'
 import { requestNotificationPermission } from '../lib/notifications'
 
 
@@ -20,6 +20,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
   const [mood, setMood] = useState<ItemMood>('physical')
   const [regionId, setRegionId] = useState('')
   const [status, setStatus] = useState<ItemStatus>('committed')
+  const [itemTheme, setItemTheme] = useState<ItemTheme | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -37,6 +38,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
     setLocation('')
     setMood('physical')
     setStatus('committed')
+    setItemTheme(null)
     setImageFile(null)
     setImagePreview(null)
     setRegionId('')
@@ -73,6 +75,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
         real_image_url: null,
         location: location.trim() || null,
         mood,
+        theme: itemTheme,
         region_id: regionId,
         status,
       })
@@ -228,6 +231,30 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                   onChange={e => setLocation(e.target.value)}
                   placeholder="e.g. Iceland"
                 />
+              </div>
+
+              {/* Theme */}
+              <div className="mb-3">
+                <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>theme</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(Object.entries(ITEM_THEMES) as [ItemTheme, typeof ITEM_THEMES[ItemTheme]][]).map(([key, t]) => (
+                    <button
+                      key={key}
+                      onClick={() => setItemTheme(itemTheme === key ? null : key)}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        border: `1.5px solid ${itemTheme === key ? t.borderColor : 'var(--border)'}`,
+                        background: itemTheme === key ? `${t.borderColor}22` : 'transparent',
+                        color: itemTheme === key ? t.borderColor : 'var(--text-secondary)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {t.emoji} {t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Mood + Region row */}
