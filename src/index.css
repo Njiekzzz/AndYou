@@ -3,8 +3,11 @@
 :root {
   --bg: #fafaf8;
   --bg-card: #ffffff;
-  --dot-color: #ccc9c0;
+  --dot-color: rgba(204, 201, 192, 0.7);
   --dot-size: 13px;
+  --bg-polaroid: #ffffff;
+  --polaroid-text: #1a1a18;
+  --polaroid-text-muted: #6b6456;
   --string-color: #3a3a36;
   --tape-bg: #f0ebe0;
   --tape-text: #6b6456;
@@ -25,7 +28,10 @@
 .dark {
   --bg: #111110;
   --bg-card: #1e1e1c;
-  --dot-color: #2a2a28;
+  --dot-color: rgba(42, 42, 40, 0.7);
+  --bg-polaroid: #ffffff;
+  --polaroid-text: #1a1a18;
+  --polaroid-text-muted: #6b6456;
   --string-color: #d8d4cc;
   --tape-bg: #2a2820;
   --tape-text: #a09880;

@@ -23,15 +23,17 @@ export const CARD_WIDTH_EXPORT = CARD_WIDTH
 export const THREAD_LENGTH_EXPORT = THREAD_LENGTH
 
 // Small heart SVG row used in the polaroid caption
-function CardHearts({ filled, muted }: { filled: number; muted: boolean }) {
+function CardHearts({ filled, muted, small }: { filled: number; muted: boolean; small?: boolean }) {
+  const w = small ? 6 : 8
+  const h = small ? 5 : 7
   return (
     <div style={{ display: 'flex', gap: 2 }}>
       {Array.from({ length: 5 }, (_, i) => (
-        <svg key={i} width="8" height="7" viewBox="0 0 10 9" style={{ flexShrink: 0 }}>
+        <svg key={i} width={w} height={h} viewBox="0 0 10 9" style={{ flexShrink: 0 }}>
           <path
             d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
-            fill={i < filled ? (muted ? 'var(--text-secondary)' : 'var(--text-primary)') : 'transparent'}
-            stroke={muted ? 'var(--border)' : 'var(--text-secondary)'}
+            fill={i < filled ? (muted ? '#b0a898' : '#c8745a') : 'transparent'}
+            stroke={muted ? '#c8c4bc' : '#c8745a'}
             strokeWidth="0.8"
           />
         </svg>
@@ -114,10 +116,10 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
   const isProposed = item.status === 'proposed'
   const isDone = item.status === 'done'
 
-  // Card background: gradient tint in styled mode
+  // Card background: solid color-mix gradient (no alpha/transparency)
   const cardBackground = showDecoration
-    ? `linear-gradient(175deg, var(--bg-card) 52%, ${themeConfig!.borderColor}18 100%)`
-    : 'var(--bg-card)'
+    ? `linear-gradient(175deg, var(--bg-polaroid) 52%, color-mix(in srgb, var(--bg-polaroid) 80%, ${themeConfig!.borderColor}) 100%)`
+    : 'var(--bg-polaroid)'
 
   // Outline ring in border mode
   const cardOutline = polaroidStyle === 'border' && themeConfig
@@ -166,6 +168,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           filter: isLocked ? 'blur(1.5px)' : 'none',
           outline: cardOutline,
           outlineOffset: '0px',
+          color: 'var(--polaroid-text)',
         }}
         className={`polaroid-shadow ${!isLocked ? 'polaroid-shadow-hover' : ''} no-select`}
       >
@@ -174,7 +177,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           style={{
             width: '100%',
             height: CARD_PHOTO_HEIGHT,
-            background: item.image_url ? undefined : 'var(--border)',
+            background: item.image_url ? undefined : '#ece8e0',
             borderRadius: 1,
             overflow: 'hidden',
             position: 'relative',
@@ -198,7 +201,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
 
           {creator && (
             <div style={{ position: 'absolute', bottom: 4, left: 4 }}>
-              <Avatar name={creator.name} color={creator.avatar_color} size={18} borderColor="var(--avatar-border)" borderWidth={1.5} />
+              <Avatar name={creator.name} color={creator.avatar_color} size={18} borderColor="#ffffff" borderWidth={1.5} />
             </div>
           )}
 
@@ -247,7 +250,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           <div
             className="font-mono-tight"
             style={{
-              color: 'var(--text-primary)',
+              color: 'var(--polaroid-text)',
               lineHeight: 1.3,
               overflow: 'hidden',
               display: '-webkit-box',
@@ -266,11 +269,11 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
             </div>
           )}
 
-          {/* Rating hearts */}
+          {/* Rating hearts — partner first (bigger), mine second (smaller) */}
           {hasRatings && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 3 }}>
-              {myRating > 0 && <CardHearts filled={myRating} muted={false} />}
-              {partnerRating > 0 && <CardHearts filled={partnerRating} muted />}
+              {partnerRating > 0 && <CardHearts filled={partnerRating} muted={false} />}
+              {myRating > 0 && <CardHearts filled={myRating} muted small />}
             </div>
           )}
         </div>

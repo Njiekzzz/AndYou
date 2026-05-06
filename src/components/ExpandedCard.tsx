@@ -217,41 +217,50 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
             )}
 
             {/* Rating */}
-            <div className="flex items-center gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>priority</span>
-              <div className="flex items-center gap-1.5">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setRating(liveItem.id, i + 1 === myRating ? 0 : i + 1)}
-                    style={{ padding: 0, cursor: 'pointer', lineHeight: 1 }}
-                  >
-                    <svg width="20" height="18" viewBox="0 0 10 9">
-                      <path
-                        d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
-                        fill={i < myRating ? '#c8745a' : 'none'}
-                        stroke={i < myRating ? '#c8745a' : 'var(--border)'}
-                        strokeWidth="0.6"
-                      />
-                    </svg>
-                  </button>
-                ))}
-              </div>
-              {(partnerReaction?.rating ?? 0) > 0 && (
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <svg key={i} width="14" height="12" viewBox="0 0 10 9">
-                      <path
-                        d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
-                        fill={i < (partnerReaction?.rating ?? 0) ? 'var(--text-secondary)' : 'none'}
-                        stroke={i < (partnerReaction?.rating ?? 0) ? 'var(--text-secondary)' : 'var(--border)'}
-                        strokeWidth="0.6"
-                      />
-                    </svg>
-                  ))}
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>them</span>
+            <div className="mb-4">
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>dream it</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {/* Partner hearts — bigger, colored, shown first */}
+                {(partnerReaction?.rating ?? 0) > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 28, flexShrink: 0 }}>them</span>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <svg key={i} width="22" height="20" viewBox="0 0 10 9">
+                          <path
+                            d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
+                            fill={i < (partnerReaction?.rating ?? 0) ? '#c8745a' : 'none'}
+                            stroke={i < (partnerReaction?.rating ?? 0) ? '#c8745a' : 'var(--border)'}
+                            strokeWidth="0.6"
+                          />
+                        </svg>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* My hearts — smaller, clickable */}
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 28, flexShrink: 0 }}>you</span>
+                  <div className="flex items-center gap-1.5">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setRating(liveItem.id, i + 1 === myRating ? 0 : i + 1)}
+                        style={{ padding: 0, cursor: 'pointer', lineHeight: 1 }}
+                      >
+                        <svg width="15" height="13" viewBox="0 0 10 9">
+                          <path
+                            d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
+                            fill={i < myRating ? '#c8745a' : 'none'}
+                            stroke={i < myRating ? '#c8745a' : 'var(--border)'}
+                            strokeWidth="0.6"
+                          />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Actions */}

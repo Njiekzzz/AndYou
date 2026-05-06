@@ -13,20 +13,7 @@ const ITEM_SPACING = 32
 const NAIL_RADIUS = 4
 const TOPBAR_HEIGHT = 52
 const BOTTOMNAV_HEIGHT = 64
-
-type DrawTool = 'draw' | 'sticker'
-
-function pointsToPath(pts: { x: number; y: number }[]): string {
-  if (pts.length < 2) return `M ${pts[0]?.x ?? 0} ${pts[0]?.y ?? 0}`
-  let d = `M ${pts[0].x} ${pts[0].y}`
-  for (let i = 1; i < pts.length - 1; i++) {
-    const mx = (pts[i].x + pts[i + 1].x) / 2
-    const my = (pts[i].y + pts[i + 1].y) / 2
-    d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`
-  }
-  d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`
-  return d
-}
+const DOT_BASE_SIZE = 13
 
 interface TimelineCanvasProps {
   onItemClick: (item: BucketItem) => void
@@ -34,7 +21,7 @@ interface TimelineCanvasProps {
 }
 
 export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps) {
-  const { items, regions, strokes, stickers, addStroke, removeStroke, addSticker, removeSticker } = useApp()
+  const { items, regions, stickers, addSticker, removeSticker } = useApp()
   const containerRef = useRef<HTMLDivElement>(null)
   const [scrollX, setScrollX] = useState(0)
   const [scale, setScale] = useState(1)
@@ -47,22 +34,16 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
   const rafId = useRef<number>(0)
   const [, forceUpdate] = useState(0)
 
-  // Keep scrollX in a ref for use in draw handlers without stale closure
   useEffect(() => { scrollXRef.current = scrollX }, [scrollX])
 
   // Pinch-to-zoom
   const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map())
   const lastPinchDist = useRef<number | null>(null)
 
-  // Decoration state
+  // Sticker decoration state
   const [isDecorateMode, setIsDecorateMode] = useState(false)
-  const [activeTool, setActiveTool] = useState<DrawTool>('draw')
   const [activeColor, setActiveColor] = useState(DECORATE_COLORS[0])
   const [activeStickerType, setActiveStickerType] = useState<string>('heart')
-  const [brushWidth, setBrushWidth] = useState(3)
-  const currentStrokePoints = useRef<{ x: number; y: number }[]>([])
-  const isDrawing = useRef(false)
-  const lastStrokeId = useRef<string | null>(null)
 
   const isRegionLocked = useCallback((region: Region): boolean => {
     if (!region.unlock_date) return false
@@ -122,18 +103,10 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (isDecorateMode) {
-      e.currentTarget.setPointerCapture(e.pointerId)
       const canvasX = e.clientX + scrollXRef.current
       const canvasY = e.clientY - TOPBAR_HEIGHT
-
-      if (activeTool === 'draw') {
-        currentStrokePoints.current = [{ x: canvasX, y: canvasY }]
-        isDrawing.current = true
-        forceUpdate(n => n + 1)
-      } else if (activeTool === 'sticker') {
-        const rot = Math.round(Math.random() * 24 - 12)
-        addSticker({ type: activeStickerType as 'heart' | 'star' | 'sparkle' | 'flower', x: canvasX, y: canvasY, size: 40, rotation: rot, color: activeColor })
-      }
+      const rot = Math.round(Math.random() * 24 - 12)
+      addSticker({ type: activeStickerType as 'heart' | 'star' | 'sparkle' | 'flower', x: canvasX, y: canvasY, size: 40, rotation: rot, color: activeColor })
       return
     }
 
@@ -151,18 +124,10 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
       isDragging.current = false
       lastPinchDist.current = null
     }
-  }, [isDecorateMode, activeTool, activeStickerType, activeColor, addSticker])
+  }, [isDecorateMode, activeStickerType, activeColor, addSticker])
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (isDecorateMode) {
-      if (activeTool === 'draw' && isDrawing.current) {
-        const canvasX = e.clientX + scrollXRef.current
-        const canvasY = e.clientY - TOPBAR_HEIGHT
-        currentStrokePoints.current.push({ x: canvasX, y: canvasY })
-        forceUpdate(n => n + 1)
-      }
-      return
-    }
+    if (isDecorateMode) return
 
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
@@ -185,22 +150,10 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
     lastX.current = e.clientX
     lastTime.current = now
     setScrollX(clampScroll(dragStart.current.scrollX + dx))
-  }, [isDecorateMode, activeTool, clampScroll])
+  }, [isDecorateMode, clampScroll])
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
-    if (isDecorateMode) {
-      if (activeTool === 'draw' && isDrawing.current) {
-        isDrawing.current = false
-        const pts = currentStrokePoints.current
-        if (pts.length > 1) {
-          addStroke({ d: pointsToPath(pts), color: activeColor, width: brushWidth })
-            .then(() => { lastStrokeId.current = null })
-        }
-        currentStrokePoints.current = []
-        forceUpdate(n => n + 1)
-      }
-      return
-    }
+    if (isDecorateMode) return
 
     activePointers.current.delete(e.pointerId)
     lastPinchDist.current = null
@@ -217,7 +170,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
       }
       rafId.current = requestAnimationFrame(animate)
     }
-  }, [isDecorateMode, activeTool, activeColor, brushWidth, addStroke, clampScroll])
+  }, [isDecorateMode, clampScroll])
 
   const onWheel = useCallback((e: React.WheelEvent) => {
     if (isDecorateMode) return
@@ -251,10 +204,6 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
   const cardTopAbove = stringY - THREAD_LENGTH - CARD_HEIGHT
   const cardTopBelow = stringY
 
-  const currentPathD = currentStrokePoints.current.length > 1
-    ? pointsToPath(currentStrokePoints.current)
-    : null
-
   return (
     <div
       ref={containerRef}
@@ -266,11 +215,10 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         right: 0,
         bottom: BOTTOMNAV_HEIGHT,
         overflow: 'hidden',
-        cursor: isDecorateMode
-          ? (activeTool === 'draw' ? 'crosshair' : 'copy')
-          : (isDragging.current ? 'grabbing' : 'grab'),
+        cursor: isDecorateMode ? 'copy' : (isDragging.current ? 'grabbing' : 'grab'),
         backgroundColor: 'var(--bg)',
         touchAction: 'none',
+        backgroundSize: `${DOT_BASE_SIZE * scale}px ${DOT_BASE_SIZE * scale}px`,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -292,18 +240,6 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
       >
         {/* String */}
         <div style={{ position: 'absolute', top: stringY, left: 0, width: totalWidth, height: 1.5, background: 'var(--string-color)', opacity: 0.85 }} />
-
-        {/* Drawing layer (SVG — behind cards) */}
-        <svg
-          style={{ position: 'absolute', top: 0, left: 0, width: totalWidth, height: '100%', pointerEvents: 'none', zIndex: 2 }}
-        >
-          {strokes.map(s => (
-            <path key={s.id} d={s.d} stroke={s.color} strokeWidth={s.width} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          ))}
-          {currentPathD && (
-            <path d={currentPathD} stroke={activeColor} strokeWidth={brushWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />
-          )}
-        </svg>
 
         {/* Stickers */}
         {stickers.map(s => (
@@ -389,7 +325,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         )}
       </div>
 
-      {/* Decorate toggle button */}
+      {/* Sticker mode toggle button */}
       <button
         onPointerDown={e => e.stopPropagation()}
         onClick={() => setIsDecorateMode(d => !d)}
@@ -408,21 +344,21 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
           zIndex: 20,
           boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
         }}
-        title="Decorate"
+        title="Stickers"
       >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path
-            d="M2 13L5 12L13 4L11 2L3 10L2 13Z"
+            d="M8,14.5 C8,14.5 1,9.5 1,5 C1,2.8 2.8,1 5,1 C6.2,1 7.2,1.6 8,2.5 C8.8,1.6 9.8,1 11,1 C13.2,1 15,2.8 15,5 C15,9.5 8,14.5 8,14.5 Z"
             stroke={isDecorateMode ? 'var(--bg)' : 'var(--text-secondary)'}
+            fill={isDecorateMode ? 'var(--bg)' : 'none'}
             strokeWidth="1.3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <path d="M11 2L13 4" stroke={isDecorateMode ? 'var(--bg)' : 'var(--text-secondary)'} strokeWidth="1.3" strokeLinecap="round"/>
         </svg>
       </button>
 
-      {/* Decoration toolbar */}
+      {/* Sticker toolbar */}
       {isDecorateMode && (
         <div
           onPointerDown={e => e.stopPropagation()}
@@ -443,33 +379,8 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
             maxWidth: 'calc(100vw - 100px)',
           }}
         >
-          {/* Tool toggle */}
-          <button
-            onClick={() => setActiveTool('draw')}
-            style={{ opacity: activeTool === 'draw' ? 1 : 0.4, fontSize: 16, lineHeight: 1 }}
-            title="Draw"
-          >✏️</button>
-          <button
-            onClick={() => setActiveTool('sticker')}
-            style={{ opacity: activeTool === 'sticker' ? 1 : 0.4, fontSize: 16, lineHeight: 1 }}
-            title="Sticker"
-          >✦</button>
-
-          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-
-          {/* Brush sizes (draw mode) */}
-          {activeTool === 'draw' && [2, 4, 8].map(w => (
-            <button
-              key={w}
-              onClick={() => setBrushWidth(w)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, opacity: brushWidth === w ? 1 : 0.35 }}
-            >
-              <div style={{ width: w * 2.5, height: w * 2.5, borderRadius: '50%', background: 'var(--text-primary)' }} />
-            </button>
-          ))}
-
-          {/* Sticker types (sticker mode) */}
-          {activeTool === 'sticker' && STICKER_TYPES.map(type => (
+          {/* Sticker types */}
+          {STICKER_TYPES.map(type => (
             <button
               key={type}
               onClick={() => setActiveStickerType(type)}
@@ -498,16 +409,6 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
           ))}
 
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-
-          {/* Undo last stroke */}
-          {activeTool === 'draw' && strokes.length > 0 && (
-            <button
-              onClick={() => removeStroke(strokes[strokes.length - 1].id)}
-              style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6 }}
-            >
-              undo
-            </button>
-          )}
 
           <button
             onClick={() => setIsDecorateMode(false)}

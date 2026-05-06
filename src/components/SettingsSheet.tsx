@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { Region, PolaroidStyle } from '../types'
@@ -9,7 +9,8 @@ interface SettingsSheetProps {
 }
 
 export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
-  const { wall, regions, updateRegion, addRegion, polaroidStyle, setPolaroidStyle } = useApp()
+  const { wall, regions, updateRegion, addRegion, polaroidStyle, setPolaroidStyle, updateWallName } = useApp()
+  const [wallNameInput, setWallNameInput] = useState(wall?.name ?? '')
   const [newRegionName, setNewRegionName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -37,6 +38,8 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
   }
 
   const sortedRegions = [...regions].sort((a, b) => a.order - b.order)
+
+  useEffect(() => { setWallNameInput(wall?.name ?? '') }, [wall?.name])
 
   return (
     <AnimatePresence>
@@ -79,6 +82,39 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
                 <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>settings</h2>
                 <button onClick={onClose} style={{ color: 'var(--text-muted)', fontSize: 22 }}>×</button>
               </div>
+
+              {/* Wall name */}
+              {wall && (
+                <div className="mb-6">
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                    wall name
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={wallNameInput}
+                      onChange={e => setWallNameInput(e.target.value)}
+                      placeholder="give this wall a name…"
+                      onKeyDown={e => e.key === 'Enter' && wallNameInput.trim() && updateWallName(wallNameInput.trim())}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      onClick={() => wallNameInput.trim() && updateWallName(wallNameInput.trim())}
+                      disabled={!wallNameInput.trim()}
+                      style={{
+                        padding: '8px 14px',
+                        background: 'var(--text-primary)',
+                        color: 'var(--bg)',
+                        borderRadius: 6,
+                        fontSize: 13,
+                        opacity: !wallNameInput.trim() ? 0.4 : 1,
+                      }}
+                    >
+                      save
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Wall code */}
               {wall && (

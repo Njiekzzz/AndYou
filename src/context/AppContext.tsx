@@ -65,6 +65,7 @@ interface AppContextType {
   switchWall: (wallId: string) => Promise<void>
   leaveWall: () => Promise<void>
   kickPartner: () => Promise<void>
+  updateWallName: (name: string) => Promise<void>
   polaroidStyle: PolaroidStyle
   setPolaroidStyle: (s: PolaroidStyle) => void
   strokes: DrawingStroke[]
@@ -462,6 +463,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [wall, user, setItems, setRegions])
 
+  const updateWallName = useCallback(async (name: string) => {
+    if (!wall) return
+    await updateDoc(wallDoc(wall.id), { name })
+    setWall(prev => prev ? { ...prev, name } : null)
+  }, [wall])
+
   const kickPartner = useCallback(async () => {
     if (!partner || !wall) return
     await deleteDoc(userDoc(wall.id, partner.id))
@@ -557,7 +564,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       commitItem, completeItem, deleteItem, toggleHeart, setRating,
       updateRegion, addRegion, reorderRegions, uploadImage,
       getItemReactions, getUserById, usersInWall,
-      signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner,
+      signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner, updateWallName,
       polaroidStyle, setPolaroidStyle,
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
     }}>

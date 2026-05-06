@@ -63,6 +63,7 @@ export interface Reaction {
 export interface Wall {
   id: string
   code: string
+  name?: string
   created_at: string
 }
 
