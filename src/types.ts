@@ -8,6 +8,8 @@ export interface ThemeConfig {
   borderColor: string
 }
 
+export type PolaroidStyle = 'styled' | 'border' | 'plain'
+
 export const ITEM_THEMES: Record<ItemTheme, ThemeConfig> = {
   adventure:  { label: 'Adventure',  emoji: '🏔️', borderColor: '#6b9e7e' },
   splurge:    { label: 'Splurge',    emoji: '💸', borderColor: '#c69a4a' },

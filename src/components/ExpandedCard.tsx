@@ -11,7 +11,7 @@ interface ExpandedCardProps {
 }
 
 export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
-  const { user, getUserById, getItemReactions, commitItem, completeItem, deleteItem, toggleHeart, setRating, uploadImage, regions, items } = useApp()
+  const { user, getUserById, getItemReactions, commitItem, completeItem, deleteItem, setRating, uploadImage, regions, items } = useApp()
 
   // Use the live item from context so updates (e.g. real_image_url) reflect immediately
   const liveItem = items.find(i => i.id === item.id) ?? item
@@ -20,7 +20,6 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
   const creator = getUserById(liveItem.created_by)
   const reactions = getItemReactions(liveItem.id)
   const myReaction = reactions.find(r => r.user_id === user?.id)
-  const myHeart = myReaction?.heart ?? false
   const myRating = myReaction?.rating ?? 0
   const partnerReaction = reactions.find(r => r.user_id !== user?.id)
   const region = regions.find(r => r.id === liveItem.region_id)
@@ -218,51 +217,40 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
             )}
 
             {/* Rating */}
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>priority</span>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 10 }, (_, i) => {
-                  const filled = i < myRating
-                  const partnerFilled = partnerReaction?.rating ? i < partnerReaction.rating : false
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setRating(liveItem.id, i + 1)}
-                      style={{
-                        width: 10, height: 10, borderRadius: '50%', padding: 0, cursor: 'pointer',
-                        border: `1.5px solid ${filled ? 'var(--text-primary)' : partnerFilled ? 'var(--text-secondary)' : 'var(--border)'}`,
-                        background: filled ? 'var(--text-primary)' : partnerFilled ? 'var(--text-secondary)' : 'transparent',
-                        transition: 'all 0.1s',
-                      }}
-                    />
-                  )
-                })}
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setRating(liveItem.id, i + 1 === myRating ? 0 : i + 1)}
+                    style={{ padding: 0, cursor: 'pointer', lineHeight: 1 }}
+                  >
+                    <svg width="20" height="18" viewBox="0 0 10 9">
+                      <path
+                        d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
+                        fill={i < myRating ? '#c8745a' : 'none'}
+                        stroke={i < myRating ? '#c8745a' : 'var(--border)'}
+                        strokeWidth="0.6"
+                      />
+                    </svg>
+                  </button>
+                ))}
               </div>
-              {myRating > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{myRating}/10</span>}
-            </div>
-
-            {/* Heart */}
-            <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => toggleHeart(liveItem.id)} className="flex items-center gap-1.5 transition-transform active:scale-90">
-                <svg width="18" height="16" viewBox="0 0 18 16" fill="none">
-                  <path
-                    d="M9 14.5S1 9.5 1 4.5C1 2.567 2.567 1 4.5 1c1.2 0 2.3.6 3 1.5.7-.9 1.8-1.5 3-1.5C12.433 1 14 2.567 14 4.5"
-                    stroke={myHeart ? '#c97b5a' : 'var(--text-muted)'}
-                    strokeWidth="1.5" strokeLinecap="round"
-                    fill={myHeart ? '#c97b5a' : 'none'}
-                  />
-                  {partnerReaction?.heart && (
-                    <path d="M14 4.5c0-1.933 1.567-3.5 3.5-3.5" stroke="#c97b5a" strokeWidth="1.5" strokeLinecap="round"/>
-                  )}
-                </svg>
-                <span style={{ fontSize: 12, color: myHeart ? '#c97b5a' : 'var(--text-muted)' }}>
-                  {myHeart ? 'loved' : 'love this'}
-                </span>
-              </button>
-              {partnerReaction?.heart && (
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {getUserById(reactions.find(r => r.user_id !== user?.id && r.heart)?.user_id ?? '')?.name ?? 'them'} also loves it
-                </span>
+              {(partnerReaction?.rating ?? 0) > 0 && (
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <svg key={i} width="14" height="12" viewBox="0 0 10 9">
+                      <path
+                        d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
+                        fill={i < (partnerReaction?.rating ?? 0) ? 'var(--text-secondary)' : 'none'}
+                        stroke={i < (partnerReaction?.rating ?? 0) ? 'var(--text-secondary)' : 'var(--border)'}
+                        strokeWidth="0.6"
+                      />
+                    </svg>
+                  ))}
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>them</span>
+                </div>
               )}
             </div>
 

@@ -1,4 +1,4 @@
-import { User, Region, BucketItem, SavedWall } from '../types'
+import { User, Region, BucketItem, SavedWall, PolaroidStyle } from '../types'
 
 const USER_KEY = 'andyou_user'
 const WALL_KEY = 'andyou_wall'
@@ -50,6 +50,14 @@ export function saveTheme(theme: 'light' | 'dark') {
 }
 export function loadTheme(): 'light' | 'dark' {
   return (localStorage.getItem(THEME_KEY) as 'light' | 'dark') || 'light'
+}
+
+const POLAROID_STYLE_KEY = 'andyou_polaroid_style'
+export function savePolaroidStyle(style: PolaroidStyle) {
+  localStorage.setItem(POLAROID_STYLE_KEY, style)
+}
+export function loadPolaroidStyle(): PolaroidStyle {
+  return (localStorage.getItem(POLAROID_STYLE_KEY) as PolaroidStyle) || 'styled'
 }
 
 const GOOGLE_UID_KEY = 'andyou_google_uid'

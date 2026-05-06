@@ -10,8 +10,9 @@ import {
   saveRegions, loadRegions, saveItems, loadItems, saveTheme, loadTheme,
   saveGoogleUid, clearGoogleUid,
   clearUser, clearWallId, loadSavedWalls, addToSavedWalls, removeFromSavedWalls,
+  savePolaroidStyle, loadPolaroidStyle,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -64,6 +65,8 @@ interface AppContextType {
   switchWall: (wallId: string) => Promise<void>
   leaveWall: () => Promise<void>
   kickPartner: () => Promise<void>
+  polaroidStyle: PolaroidStyle
+  setPolaroidStyle: (s: PolaroidStyle) => void
   strokes: DrawingStroke[]
   stickers: WallSticker[]
   addStroke: (data: Omit<DrawingStroke, 'id' | 'userId'>) => Promise<void>
@@ -103,6 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
   const googleUserRef = useRef<GoogleUser | null>(null)
   const [savedWalls, setSavedWalls] = useState<SavedWall[]>(loadSavedWalls())
+  const [polaroidStyle, setPolaroidStyleState] = useState<PolaroidStyle>(loadPolaroidStyle())
   const [strokes, setStrokes] = useState<DrawingStroke[]>([])
   const [stickers, setStickers] = useState<WallSticker[]>([])
 
@@ -143,6 +147,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     })
     return unsubscribe
+  }, [])
+
+  const setPolaroidStyle = useCallback((s: PolaroidStyle) => {
+    savePolaroidStyle(s)
+    setPolaroidStyleState(s)
   }, [])
 
   const toggleTheme = useCallback(() => {
@@ -549,6 +558,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateRegion, addRegion, reorderRegions, uploadImage,
       getItemReactions, getUserById, usersInWall,
       signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner,
+      polaroidStyle, setPolaroidStyle,
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
     }}>
       {children}

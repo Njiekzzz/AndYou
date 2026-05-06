@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { Region } from '../types'
+import { Region, PolaroidStyle } from '../types'
 
 interface SettingsSheetProps {
   open: boolean
@@ -9,7 +9,7 @@ interface SettingsSheetProps {
 }
 
 export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
-  const { wall, regions, updateRegion, addRegion } = useApp()
+  const { wall, regions, updateRegion, addRegion, polaroidStyle, setPolaroidStyle } = useApp()
   const [newRegionName, setNewRegionName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -101,6 +101,34 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>tap to copy</div>
                 </div>
               )}
+
+              {/* Polaroid style */}
+              <div className="mb-6">
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                  polaroid style
+                </div>
+                <div className="flex gap-2">
+                  {([
+                    ['styled', 'themed design'],
+                    ['border', 'colour border'],
+                    ['plain', 'plain'],
+                  ] as [PolaroidStyle, string][]).map(([s, label]) => (
+                    <button
+                      key={s}
+                      onClick={() => setPolaroidStyle(s)}
+                      style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 6, fontSize: 11,
+                        border: `1px solid ${polaroidStyle === s ? 'var(--text-primary)' : 'var(--border)'}`,
+                        background: polaroidStyle === s ? 'var(--text-primary)' : 'transparent',
+                        color: polaroidStyle === s ? 'var(--bg)' : 'var(--text-secondary)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Regions */}
               <div>
