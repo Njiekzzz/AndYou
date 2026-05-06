@@ -66,29 +66,30 @@ export function OnboardingScreen() {
             className="text-center px-8 max-w-sm w-full"
           >
             <div className="mb-10">
-              <h1 className="text-4xl font-light tracking-widest mb-2" style={{ color: 'var(--text-primary)' }}>& you</h1>
+              <h1 style={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: 48, fontWeight: 400, letterSpacing: '-0.01em', color: 'var(--text-primary)', marginBottom: 6 }}>
+                <span style={{ fontStyle: 'italic', color: '#c8745a' }}>&</span>you
+              </h1>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>a shared wall for two</p>
             </div>
             <div className="space-y-3">
               <button
                 onClick={() => setStep('name-create')}
-                className="w-full py-3 px-6 text-sm tracking-wide transition-all"
+                className="w-full py-3 px-6 text-sm font-medium transition-all"
                 style={{
-                  background: 'var(--text-primary)',
-                  color: 'var(--bg)',
-                  borderRadius: '6px',
+                  background: '#3a7a78',
+                  color: '#fdf8eb',
+                  borderRadius: '999px',
                 }}
               >
                 create a wall
               </button>
               <button
                 onClick={() => setStep('name-join')}
-                className="w-full py-3 px-6 text-sm tracking-wide transition-all"
+                className="w-full py-3 px-6 text-sm font-medium transition-all"
                 style={{
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
+                  background: '#e8d4a8',
+                  color: '#2a2620',
+                  borderRadius: '999px',
                 }}
               >
                 join with code
@@ -171,11 +172,11 @@ export function OnboardingScreen() {
             <button
               onClick={step === 'name-create' ? handleCreate : handleJoin}
               disabled={loading || !name.trim() || (step === 'name-join' && joinCode.length < 6)}
-              className="w-full py-3 px-6 text-sm tracking-wide transition-all disabled:opacity-40"
+              className="w-full py-3 px-6 text-sm font-medium transition-all disabled:opacity-40"
               style={{
-                background: 'var(--text-primary)',
-                color: 'var(--bg)',
-                borderRadius: '6px',
+                background: '#3a7a78',
+                color: '#fdf8eb',
+                borderRadius: '999px',
               }}
             >
               {loading ? 'loading…' : step === 'name-create' ? 'create wall' : 'join wall'}
@@ -207,11 +208,11 @@ export function OnboardingScreen() {
             </p>
             <button
               onClick={() => {}}
-              className="w-full py-3 px-6 text-sm tracking-wide"
+              className="w-full py-3 px-6 text-sm font-medium"
               style={{
-                background: 'var(--text-primary)',
-                color: 'var(--bg)',
-                borderRadius: '6px',
+                background: '#3a7a78',
+                color: '#fdf8eb',
+                borderRadius: '999px',
               }}
             >
               open my wall

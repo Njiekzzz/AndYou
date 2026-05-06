@@ -50,8 +50,9 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
         </div>
         <span
           style={{
-            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontFamily: '"Fraunces", Georgia, serif',
             fontSize: 22,
+            fontWeight: 400,
             letterSpacing: '-0.01em',
             lineHeight: 1,
             color: 'var(--text-primary)',

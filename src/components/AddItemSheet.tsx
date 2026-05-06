@@ -269,11 +269,11 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                         style={{
                           flex: 1,
                           padding: '7px 4px',
-                          borderRadius: 6,
+                          borderRadius: 999,
                           fontSize: 12,
-                          border: `1px solid ${mood === m ? 'var(--text-primary)' : 'var(--border)'}`,
-                          background: mood === m ? 'var(--text-primary)' : 'transparent',
-                          color: mood === m ? 'var(--bg)' : 'var(--text-secondary)',
+                          border: `1px solid ${mood === m ? '#3a7a78' : 'var(--border)'}`,
+                          background: mood === m ? '#3a7a78' : 'transparent',
+                          color: mood === m ? '#fdf8eb' : 'var(--text-secondary)',
                           transition: 'all 0.15s',
                         }}
                       >
@@ -304,11 +304,11 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                       style={{
                         flex: 1,
                         padding: '7px 4px',
-                        borderRadius: 6,
+                        borderRadius: 999,
                         fontSize: 12,
-                        border: `1px solid ${status === s ? 'var(--text-primary)' : 'var(--border)'}`,
-                        background: status === s ? 'var(--text-primary)' : 'transparent',
-                        color: status === s ? 'var(--bg)' : 'var(--text-secondary)',
+                        border: `1px solid ${status === s ? '#3a7a78' : 'var(--border)'}`,
+                        background: status === s ? '#3a7a78' : 'transparent',
+                        color: status === s ? '#fdf8eb' : 'var(--text-secondary)',
                         transition: 'all 0.15s',
                       }}
                     >
@@ -325,9 +325,9 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                 style={{
                   width: '100%',
                   padding: '13px',
-                  background: 'var(--text-primary)',
-                  color: 'var(--bg)',
-                  borderRadius: 8,
+                  background: '#3a7a78',
+                  color: '#fdf8eb',
+                  borderRadius: 999,
                   fontSize: 15,
                   fontWeight: 500,
                   transition: 'opacity 0.15s',

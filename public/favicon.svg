@@ -1,17 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" fill="#f6f4ef"/>
-  <g transform="translate(192, 372)">
-    <defs>
-      <clipPath id="lens">
-        <path d="M 320 0 a 160 160 0 0 1 0 320 a 160 160 0 0 1 0 -320 z"/>
-      </clipPath>
-    </defs>
-    <circle cx="213" cy="160" r="160" fill="#c69a4a"/>
-    <circle cx="427" cy="160" r="160" fill="#c8745a"/>
-    <g clip-path="url(#lens)">
-      <rect x="0" y="0" width="640" height="320" fill="#a6602f"/>
-    </g>
-    <text x="320" y="225" text-anchor="middle"
-      font-family="Instrument Serif, Georgia, serif" font-style="italic" font-size="170" fill="#f6f4ef">&amp;</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 140" width="240" height="140">
+  <defs>
+    <clipPath id="lensClip">
+      <path d="M 120 10 a 60 60 0 0 1 0 120 a 60 60 0 0 1 0 -120 z"></path>
+    </clipPath>
+  </defs>
+  <circle cx="80" cy="70" r="60" fill="#c69a4a"></circle>
+  <circle cx="160" cy="70" r="60" fill="#c8745a"></circle>
+  <g clip-path="url(#lensClip)">
+    <rect x="60" y="10" width="120" height="120" fill="#a6602f"></rect>
   </g>
+  <text x="120" y="94" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-style="italic" font-weight="500" font-size="62" fill="#f5ecd9">&amp;</text>
 </svg>

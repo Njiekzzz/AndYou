@@ -43,7 +43,7 @@ export function BottomNav({ onAdd, onSpin }: BottomNavProps) {
           onClick={onSpin}
           className="w-8 h-8 flex items-center justify-center rounded-full transition-opacity hover:opacity-70"
           title="Surprise us"
-          style={{ color: 'var(--text-secondary)' }}
+          style={{ color: 'var(--text-muted)' }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M9 2a7 7 0 1 0 7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -54,11 +54,11 @@ export function BottomNav({ onAdd, onSpin }: BottomNavProps) {
           onClick={onAdd}
           className="flex items-center justify-center transition-transform active:scale-95"
           style={{
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             borderRadius: '50%',
-            background: 'var(--text-primary)',
-            color: 'var(--bg)',
+            background: '#3a7a78',
+            color: '#fdf8eb',
           }}
           title="Add item"
         >
@@ -72,25 +72,27 @@ export function BottomNav({ onAdd, onSpin }: BottomNavProps) {
 }
 
 function TimelineIcon({ active }: { active: boolean }) {
+  const color = active ? '#3a7a78' : 'var(--text-primary)'
   return (
     <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
-      <line x1="0" y1="8" x2="22" y2="8" stroke="var(--text-primary)" strokeWidth={active ? 1.8 : 1.3}/>
-      <line x1="5" y1="8" x2="5" y2="2" stroke="var(--text-primary)" strokeWidth="1.3"/>
-      <line x1="11" y1="8" x2="11" y2="14" stroke="var(--text-primary)" strokeWidth="1.3"/>
-      <line x1="17" y1="8" x2="17" y2="3" stroke="var(--text-primary)" strokeWidth="1.3"/>
-      <rect x="2" y="0" width="6" height="4" rx="0.5" stroke="var(--text-primary)" strokeWidth="1.3"/>
-      <rect x="8" y="12" width="6" height="4" rx="0.5" stroke="var(--text-primary)" strokeWidth="1.3"/>
-      <rect x="14" y="1" width="6" height="4" rx="0.5" stroke="var(--text-primary)" strokeWidth="1.3"/>
+      <line x1="0" y1="8" x2="22" y2="8" stroke={color} strokeWidth={active ? 1.8 : 1.3}/>
+      <line x1="5" y1="8" x2="5" y2="2" stroke={color} strokeWidth="1.3"/>
+      <line x1="11" y1="8" x2="11" y2="14" stroke={color} strokeWidth="1.3"/>
+      <line x1="17" y1="8" x2="17" y2="3" stroke={color} strokeWidth="1.3"/>
+      <rect x="2" y="0" width="6" height="4" rx="0.5" stroke={color} strokeWidth="1.3"/>
+      <rect x="8" y="12" width="6" height="4" rx="0.5" stroke={color} strokeWidth="1.3"/>
+      <rect x="14" y="1" width="6" height="4" rx="0.5" stroke={color} strokeWidth="1.3"/>
     </svg>
   )
 }
 
 function ListIcon({ active }: { active: boolean }) {
+  const color = active ? '#3a7a78' : 'var(--text-primary)'
   return (
     <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
-      <line x1="0" y1="3" x2="14" y2="3" stroke="var(--text-primary)" strokeWidth={active ? 1.8 : 1.3} strokeLinecap="round"/>
-      <line x1="0" y1="8" x2="20" y2="8" stroke="var(--text-primary)" strokeWidth={active ? 1.8 : 1.3} strokeLinecap="round"/>
-      <line x1="0" y1="13" x2="10" y2="13" stroke="var(--text-primary)" strokeWidth={active ? 1.8 : 1.3} strokeLinecap="round"/>
+      <line x1="0" y1="3" x2="14" y2="3" stroke={color} strokeWidth={active ? 1.8 : 1.3} strokeLinecap="round"/>
+      <line x1="0" y1="8" x2="20" y2="8" stroke={color} strokeWidth={active ? 1.8 : 1.3} strokeLinecap="round"/>
+      <line x1="0" y1="13" x2="10" y2="13" stroke={color} strokeWidth={active ? 1.8 : 1.3} strokeLinecap="round"/>
     </svg>
   )
 }
