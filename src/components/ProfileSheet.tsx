@@ -109,7 +109,7 @@ export function ProfileSheet({ open, onClose }: ProfileSheetProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 70 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(42,38,32,0.4)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 70 }}
             onClick={handleClose}
           />
           <motion.div
@@ -117,7 +117,11 @@ export function ProfileSheet({ open, onClose }: ProfileSheetProps) {
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 400, damping: 38 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 30, mass: 0.8 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
+            onDragEnd={(_: unknown, info: { offset: { y: number } }) => { if (info.offset.y > 80) handleClose() }}
             style={{
               position: 'fixed',
               bottom: 0,
@@ -125,14 +129,14 @@ export function ProfileSheet({ open, onClose }: ProfileSheetProps) {
               right: 0,
               zIndex: 71,
               background: 'var(--sheet-bg)',
-              borderRadius: '16px 16px 0 0',
+              borderRadius: '24px 24px 0 0',
               padding: '0 0 env(safe-area-inset-bottom)',
               maxHeight: '85vh',
               overflowY: 'auto',
             }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 

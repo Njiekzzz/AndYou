@@ -62,7 +62,9 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.6)',
+          background: 'rgba(42,38,32,0.5)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
           zIndex: 50,
           display: 'flex',
           alignItems: 'center',
