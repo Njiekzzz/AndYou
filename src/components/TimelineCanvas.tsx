@@ -204,6 +204,15 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
   const cardTopAbove = stringY - THREAD_LENGTH - CARD_HEIGHT
   const cardTopBelow = stringY
 
+  // Compute which item is closest to the viewport center
+  const containerWidth = containerRef.current?.clientWidth ?? window.innerWidth
+  const viewportCenter = scrollX + containerWidth / 2
+  const focusedIndex = laid.reduce((best, { x }, i) => {
+    const itemCenter = x + CARD_WIDTH / 2
+    const bestCenter = laid[best].x + CARD_WIDTH / 2
+    return Math.abs(itemCenter - viewportCenter) < Math.abs(bestCenter - viewportCenter) ? i : best
+  }, 0)
+
   return (
     <div
       ref={containerRef}
@@ -219,6 +228,8 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         backgroundColor: 'var(--bg)',
         touchAction: 'none',
         backgroundSize: `${DOT_BASE_SIZE * scale}px ${DOT_BASE_SIZE * scale}px`,
+        perspective: '1200px',
+        perspectiveOrigin: '50% 40%',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -236,6 +247,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
           transform: `translateX(${-scrollX}px) scale(${scale})`,
           transformOrigin: 'center center',
           willChange: 'transform',
+          transformStyle: 'preserve-3d',
         }}
       >
         {/* String */}
@@ -297,15 +309,26 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
         ))}
 
         {/* Polaroid cards */}
-        {laid.map(({ item, x, isAbove, regionId }) => {
+        {laid.map(({ item, x, isAbove, regionId }, i) => {
           const region = regions.find(r => r.id === regionId)
           const locked = region ? isRegionLocked(region) : false
           const topY = isAbove ? cardTopAbove : cardTopBelow
 
+          const dist = Math.abs(i - focusedIndex)
+          const isFocused = laid.length > 1 && i === focusedIndex
+          const tiltY = laid.length > 1 ? (i < focusedIndex ? 8 : -8) * Math.min(dist, 2) : 0
+          const tz = laid.length > 1 ? (isFocused ? 40 : -dist * 20) : 0
+          const sc = laid.length > 1 && !isFocused ? 0.92 : 1
+
           return (
             <div
               key={item.id}
-              style={{ position: 'absolute', top: topY, left: x, width: CARD_WIDTH, zIndex: 8 }}
+              style={{
+                position: 'absolute', top: topY, left: x, width: CARD_WIDTH, zIndex: 8,
+                transform: `rotateY(${tiltY}deg) translateZ(${tz}px) scale(${sc})`,
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              }}
               onClick={e => {
                 if (isDecorateMode) return
                 e.stopPropagation()
