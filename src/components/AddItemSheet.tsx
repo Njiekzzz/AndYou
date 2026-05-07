@@ -306,9 +306,9 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                         padding: '7px 4px',
                         borderRadius: 999,
                         fontSize: 12,
-                        border: `1px solid ${status === s ? '#3a7a78' : 'var(--border)'}`,
-                        background: status === s ? '#3a7a78' : 'transparent',
-                        color: status === s ? '#fdf8eb' : 'var(--text-secondary)',
+                        border: `1px solid ${status === s ? '#e0a04a' : 'var(--border)'}`,
+                        background: status === s ? '#e0a04a' : 'transparent',
+                        color: status === s ? '#2a2620' : 'var(--text-secondary)',
                         transition: 'all 0.15s',
                       }}
                     >
@@ -325,8 +325,8 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                 style={{
                   width: '100%',
                   padding: '13px',
-                  background: '#3a7a78',
-                  color: '#fdf8eb',
+                  background: '#e0a04a',
+                  color: '#2a2620',
                   borderRadius: 999,
                   fontSize: 15,
                   fontWeight: 500,

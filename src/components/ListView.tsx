@@ -71,9 +71,9 @@ export function ListView({ onItemClick }: ListViewProps) {
                 borderRadius: 20,
                 fontSize: 11,
                 whiteSpace: 'nowrap',
-                border: `1px solid ${filterBy === f ? 'var(--text-primary)' : 'var(--border)'}`,
-                background: filterBy === f ? 'var(--text-primary)' : 'transparent',
-                color: filterBy === f ? 'var(--bg)' : 'var(--text-secondary)',
+                border: `1px solid ${filterBy === f ? '#e0a04a' : 'var(--border)'}`,
+                background: filterBy === f ? '#e0a04a' : 'transparent',
+                color: filterBy === f ? '#2a2620' : 'var(--text-secondary)',
                 transition: 'all 0.15s',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
@@ -175,11 +175,19 @@ export function ListView({ onItemClick }: ListViewProps) {
                       </span>
                     )}
                     <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
                       fontSize: 9,
-                      color: item.status === 'done' ? '#4a8a4a' : item.status === 'proposed' ? 'var(--text-muted)' : 'var(--text-secondary)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
+                      padding: '2px 7px',
+                      borderRadius: 999,
+                      textTransform: 'capitalize',
+                      letterSpacing: '0.04em',
+                      fontWeight: 500,
+                      background: item.status === 'proposed' ? '#d8e6e4' : item.status === 'committed' ? '#f5d99a' : 'rgba(224,160,74,0.2)',
+                      color: item.status === 'proposed' ? '#2d5f5d' : '#b87a2a',
                     }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', display: 'inline-block', flexShrink: 0 }} />
                       {item.status}
                     </span>
                   </div>

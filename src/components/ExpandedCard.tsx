@@ -268,7 +268,7 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
               {canCommit && (
                 <button
                   onClick={() => { commitItem(liveItem.id); onClose() }}
-                  style={{ flex: 1, padding: '8px 12px', background: 'var(--text-primary)', color: 'var(--bg)', borderRadius: 6, fontSize: 13, fontWeight: 500 }}
+                  style={{ flex: 1, padding: '8px 12px', background: '#e0a04a', color: '#2a2620', borderRadius: 999, fontSize: 13, fontWeight: 500 }}
                 >
                   commit to this
                 </button>
@@ -277,7 +277,7 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
               {liveItem.status === 'committed' && (
                 <button
                   onClick={() => { completeItem(liveItem.id); onClose() }}
-                  style={{ flex: 1, padding: '8px 12px', background: '#4a8a4a', color: '#fff', borderRadius: 6, fontSize: 13 }}
+                  style={{ flex: 1, padding: '8px 12px', background: '#e0a04a', color: '#2a2620', borderRadius: 999, fontSize: 13, fontWeight: 500 }}
                 >
                   mark done
                 </button>

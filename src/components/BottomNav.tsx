@@ -57,8 +57,8 @@ export function BottomNav({ onAdd, onSpin }: BottomNavProps) {
             width: 48,
             height: 48,
             borderRadius: '50%',
-            background: '#3a7a78',
-            color: '#fdf8eb',
+            background: '#e0a04a',
+            color: '#2a2620',
           }}
           title="Add item"
         >
