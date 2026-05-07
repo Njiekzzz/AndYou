@@ -62,16 +62,18 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
         </span>
       </button>
 
-      {/* Wall name centered */}
+      {/* Wall name centered — Fraunces italic */}
       {wall?.name && (
         <div style={{
           position: 'absolute',
           left: '50%',
           transform: 'translateX(-50%)',
-          fontSize: 12,
-          color: 'var(--text-secondary)',
-          letterSpacing: '0.05em',
+          fontFamily: 'var(--font-display)',
+          fontSize: 17,
+          fontWeight: 400,
           fontStyle: 'italic',
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.01em',
           pointerEvents: 'none',
           maxWidth: '38%',
           overflow: 'hidden',
