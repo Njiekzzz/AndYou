@@ -4,6 +4,7 @@ import { BucketItem, ITEM_THEMES, ItemTheme } from '../types'
 import { useApp } from '../context/AppContext'
 import { getRotationFromSeed } from '../lib/rotation'
 import { Avatar } from './Avatar'
+import { DevelopTransition } from './DevelopTransition'
 
 interface ExpandedCardProps {
   item: BucketItem
@@ -26,12 +27,10 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
 
   const isDone = liveItem.status === 'done'
 
-  // Default to showing the real photo when item is done and has one
   const [isFlipped, setIsFlipped] = useState(isDone && !!liveItem.real_image_url)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-flip to real photo once it becomes available after uploading
   useEffect(() => {
     if (liveItem.real_image_url) setIsFlipped(true)
   }, [liveItem.real_image_url])
@@ -49,7 +48,6 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
     setUploading(false)
   }
 
-  const displayImage = isFlipped ? liveItem.real_image_url : liveItem.image_url
   const canCommit = liveItem.status === 'proposed' && liveItem.created_by !== user?.id
 
   return (
@@ -105,67 +103,23 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
             </svg>
           </button>
 
-          {/* Image — contain so full photo is always visible */}
+          {/* Image — develop transition handles animation + done stamp + flip */}
           <div
             style={{
               height: 260,
               background: 'var(--border)',
               position: 'relative',
               overflow: 'hidden',
-              cursor: liveItem.real_image_url ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
-            onClick={() => liveItem.real_image_url && setIsFlipped(f => !f)}
           >
-            {displayImage ? (
-              <img
-                src={displayImage}
-                alt={liveItem.title}
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
-              />
-            ) : (
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" opacity={0.25}>
-                <rect x="3" y="5" width="18" height="14" rx="2" stroke="var(--text-secondary)" strokeWidth="1.5"/>
-                <circle cx="8.5" cy="10.5" r="1.5" stroke="var(--text-secondary)" strokeWidth="1.5"/>
-                <path d="M21 15l-5-5-4 4-2-2-4 4" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            )}
-
-            {/* Done stamp */}
-            {isDone && (
-              <div
-                className="stamp-animate"
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  right: 10,
-                  width: 54,
-                  height: 54,
-                  borderRadius: '50%',
-                  border: '2.5px solid rgba(74,138,74,0.9)',
-                  boxShadow: 'inset 0 0 0 1.5px rgba(74,138,74,0.35)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'rgba(255,255,255,0.88)',
-                  transform: 'rotate(-12deg)',
-                  zIndex: 5,
-                }}
-              >
-                <span style={{ fontSize: 6, letterSpacing: '0.18em', color: '#4a8a4a', fontWeight: 700, textTransform: 'uppercase' }}>DONE</span>
-                <span style={{ fontSize: 16, color: '#4a8a4a', lineHeight: 1.2 }}>✓</span>
-              </div>
-            )}
-
-            {/* Flip hint */}
-            {liveItem.real_image_url && (
-              <div style={{ position: 'absolute', bottom: 8, left: 10, fontSize: 9, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.07em' }}>
-                {isFlipped ? '← the plan · tap to flip' : 'the memory → tap to flip'}
-              </div>
-            )}
+            <DevelopTransition
+              realSrc={liveItem.real_image_url}
+              plannedSrc={liveItem.image_url}
+              alt={liveItem.title}
+              isFlipped={isFlipped}
+              onFlip={() => setIsFlipped(f => !f)}
+              isDone={isDone}
+            />
           </div>
 
           {/* Content */}
