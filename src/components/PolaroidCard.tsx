@@ -95,11 +95,19 @@ function ThemeDecoration({ theme }: { theme: ItemTheme }) {
   }
 }
 
+function formatDateStamp(iso: string) {
+  const d = new Date(iso)
+  const mon = d.toLocaleString('en', { month: 'short' }).toLowerCase()
+  const yr = String(d.getFullYear()).slice(2)
+  return `${mon} · '${yr}`
+}
+
 export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: PolaroidCardProps) {
   const { user, getUserById, getItemReactions, polaroidStyle } = useApp()
   const [isFlipped, setIsFlipped] = useState(item.status === 'done' && !!item.real_image_url)
   const rotation = getRotationFromSeed(item.rotation_seed)
   const creator = getUserById(item.created_by)
+  const dateStamp = formatDateStamp(item.created_at)
 
   const reactions = getItemReactions(item.id)
   const myReaction = reactions.find(r => r.user_id === user?.id)
@@ -157,6 +165,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           : { duration: 0 }
         }
         whileHover={{ scale: isLocked ? 1 : 1.04, rotate: isLocked ? rotation : rotation * 0.7 }}
+        whileTap={{ rotateY: 4, scale: 0.98 }}
         style={{
           width: CARD_WIDTH,
           height: cardHeight,
@@ -169,6 +178,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           outline: cardOutline,
           outlineOffset: '0px',
           color: 'var(--polaroid-text)',
+          transformStyle: 'preserve-3d',
         }}
         className={`polaroid-shadow ${!isLocked ? 'polaroid-shadow-hover' : ''} no-select`}
       >
@@ -177,27 +187,35 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
           style={{
             width: '100%',
             height: CARD_PHOTO_HEIGHT,
-            background: item.image_url ? undefined : '#ece8e0',
             borderRadius: 1,
             overflow: 'hidden',
             position: 'relative',
           }}
         >
+          {!item.image_url && (
+            <div style={{
+              width: '100%', height: '100%',
+              background: 'linear-gradient(135deg, #c69a4a 0%, #c8745a 55%, #a6602f 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>&amp;you</span>
+            </div>
+          )}
           {item.image_url && !isFlipped && (
             <img src={item.image_url} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
           )}
           {isFlipped && item.real_image_url && (
             <img src={item.real_image_url} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />
           )}
-          {!item.image_url && (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity={0.3}>
-                <rect x="3" y="5" width="18" height="14" rx="2" stroke="var(--text-secondary)" strokeWidth="1.5"/>
-                <circle cx="8.5" cy="10.5" r="1.5" stroke="var(--text-secondary)" strokeWidth="1.5"/>
-                <path d="M21 15l-5-5-4 4-2-2-4 4" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
+          {/* film-edge inner shadow */}
+          {(item.image_url || (isFlipped && item.real_image_url)) && (
+            <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 8px 16px -8px rgba(0,0,0,0.4)', pointerEvents: 'none' }} />
           )}
+          {/* paper grain overlay */}
+          <div style={{
+            position: 'absolute', inset: 0, opacity: 0.06, mixBlendMode: 'multiply', pointerEvents: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E")`,
+          }} />
 
           {creator && (
             <div style={{ position: 'absolute', bottom: 4, left: 4 }}>
@@ -246,36 +264,43 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
         </div>
 
         {/* Caption */}
-        <div style={{ height: CARD_CAPTION_HEIGHT, paddingTop: 6, overflow: 'hidden', position: 'relative' }}>
-          <div
-            className="font-mono-tight"
-            style={{
-              color: 'var(--polaroid-text)',
-              lineHeight: 1.3,
-              overflow: 'hidden',
-              display: '-webkit-box',
-              WebkitLineClamp: hasRatings ? 1 : 2,
-              WebkitBoxOrient: 'vertical',
-              paddingRight: showDecoration ? 24 : 0,
-            }}
-          >
-            {item.title}
-          </div>
-
-          {/* Theme decoration: top-right of caption */}
-          {showDecoration && (
-            <div style={{ position: 'absolute', top: 5, right: 0 }}>
-              <ThemeDecoration theme={item.theme as ItemTheme} />
+        <div style={{ height: CARD_CAPTION_HEIGHT, paddingTop: 5, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ position: 'relative' }}>
+            <div
+              className="font-mono-tight"
+              style={{
+                color: 'var(--polaroid-text)',
+                lineHeight: 1.3,
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: hasRatings ? 1 : 2,
+                WebkitBoxOrient: 'vertical',
+                paddingRight: showDecoration ? 24 : 0,
+              }}
+            >
+              {item.title}
             </div>
-          )}
+
+            {/* Theme decoration: top-right of caption */}
+            {showDecoration && (
+              <div style={{ position: 'absolute', top: 0, right: 0 }}>
+                <ThemeDecoration theme={item.theme as ItemTheme} />
+              </div>
+            )}
+          </div>
 
           {/* Rating hearts — partner first (bigger), mine second (smaller) */}
           {hasRatings && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 3 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {partnerRating > 0 && <CardHearts filled={partnerRating} muted={false} />}
               {myRating > 0 && <CardHearts filled={myRating} muted small />}
             </div>
           )}
+
+          {/* Date stamp */}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--polaroid-text-muted)', letterSpacing: '0.08em', textAlign: 'center', lineHeight: 1 }}>
+            {dateStamp}
+          </div>
         </div>
       </motion.div>
 
