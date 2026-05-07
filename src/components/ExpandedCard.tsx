@@ -194,26 +194,32 @@ export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
                     </div>
                   </div>
                 )}
-                {/* My hearts — smaller, clickable */}
+                {/* My hearts — smaller, clickable, animated */}
                 <div className="flex items-center gap-2">
                   <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 28, flexShrink: 0 }}>you</span>
                   <div className="flex items-center gap-1.5">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setRating(liveItem.id, i + 1 === myRating ? 0 : i + 1)}
-                        style={{ padding: 0, cursor: 'pointer', lineHeight: 1 }}
-                      >
-                        <svg width="15" height="13" viewBox="0 0 10 9">
-                          <path
-                            d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
-                            fill={i < myRating ? '#c8745a' : 'none'}
-                            stroke={i < myRating ? '#c8745a' : 'var(--border)'}
-                            strokeWidth="0.6"
-                          />
-                        </svg>
-                      </button>
-                    ))}
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const filled = i < myRating
+                      return (
+                        <motion.button
+                          key={i}
+                          onClick={() => setRating(liveItem.id, i + 1 === myRating ? 0 : i + 1)}
+                          whileTap={{ scale: 1.5 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                          style={{ padding: 0, cursor: 'pointer', lineHeight: 1, display: 'flex' }}
+                        >
+                          <svg width="18" height="16" viewBox="0 0 10 9">
+                            <path
+                              d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
+                              fill={filled ? '#e0a04a' : 'none'}
+                              stroke={filled ? '#e0a04a' : 'var(--border)'}
+                              strokeWidth="0.6"
+                              style={{ transition: 'fill 0.2s, stroke 0.2s' }}
+                            />
+                          </svg>
+                        </motion.button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>

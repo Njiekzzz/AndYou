@@ -255,8 +255,16 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
 
         {/* Stickers */}
         {stickers.map(s => (
-          <div
+          <motion.div
             key={s.id}
+            initial={{ y: -30, opacity: 0, scale: 0.6 }}
+            animate={{ y: 0, opacity: 1, scale: 1, rotate: [0, 8, -4, 0] }}
+            transition={{
+              y: { type: 'spring', stiffness: 320, damping: 14 },
+              opacity: { duration: 0.2 },
+              scale: { type: 'spring', stiffness: 320, damping: 14 },
+              rotate: { duration: 0.5, ease: 'easeOut' },
+            }}
             style={{
               position: 'absolute',
               left: s.x,
@@ -273,7 +281,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
             }}
           >
             <StickerSvg type={s.type} size={s.size} color={s.color} />
-          </div>
+          </motion.div>
         ))}
 
         {/* Region labels and dividers */}
@@ -327,7 +335,8 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
                 position: 'absolute', top: topY, left: x, width: CARD_WIDTH, zIndex: 8,
                 transform: `rotateY(${tiltY}deg) translateZ(${tz}px) scale(${sc})`,
                 transformStyle: 'preserve-3d',
-                transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s',
+                opacity: isDecorateMode ? 0.6 : 1,
               }}
               onClick={e => {
                 if (isDecorateMode) return
@@ -388,8 +397,8 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
           style={{
             position: 'absolute',
             bottom: 16,
-            left: '50%',
-            transform: 'translateX(-50%)',
+            left: 12,
+            right: 12,
             background: 'var(--sheet-bg)',
             borderRadius: 20,
             padding: '10px 14px',
@@ -398,8 +407,7 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
             alignItems: 'center',
             zIndex: 20,
             boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
-            flexWrap: 'wrap',
-            maxWidth: 'calc(100vw - 100px)',
+            overflowX: 'auto',
           }}
         >
           {/* Sticker types */}
