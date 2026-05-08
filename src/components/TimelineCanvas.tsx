@@ -57,10 +57,38 @@ interface TimelineCanvasProps {
   spinTarget?: string | null
 }
 
+// ─── Mini heart vote badge ────────────────────────────────────────────────────
+function HeartVote({ rating, color }: { rating: number; color: string }) {
+  return (
+    <div style={{ position: 'relative', width: 22, height: 20, flexShrink: 0 }}>
+      <svg width="22" height="20" viewBox="0 0 24 22" fill="none">
+        <path
+          d="M12 21l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21z"
+          fill={rating > 0 ? color : 'none'}
+          stroke={color}
+          strokeWidth="1.4"
+          opacity={rating > 0 ? 0.85 : 0.28}
+        />
+      </svg>
+      {rating > 0 && (
+        <span style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-mono)', fontSize: 7, fontWeight: 700,
+          color: '#fff', paddingBottom: 2,
+        }}>
+          {rating}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
   const { items, regions, reactions, user, getUserById } = useApp()
   const canvasRef   = useRef<HTMLDivElement>(null)
+  const railRef     = useRef<HTMLDivElement>(null)
   const isDragging  = useRef(false)
   const dragStartY  = useRef(0)
   const dragStartScroll = useRef(0)
@@ -109,6 +137,16 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
     }
   }, [regions, activeRegionId])
 
+  // ── Center active region chip in rail ────────────────────────────────────
+  useEffect(() => {
+    const rail = railRef.current
+    if (!rail || !activeRegionId) return
+    const chip = rail.querySelector(`[data-nav-id="${activeRegionId}"]`) as HTMLElement
+    if (!chip) return
+    const targetScroll = chip.offsetLeft - rail.offsetWidth / 2 + chip.offsetWidth / 2
+    rail.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' })
+  }, [activeRegionId])
+
   // ── Desktop drag-to-scroll ────────────────────────────────────────────────
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = true
@@ -138,22 +176,26 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
     }}>
 
       {/* ── Region indicator rail ────────────────────────────────────────── */}
-      <div style={{
-        height: RAIL_H, flexShrink: 0,
-        background: 'var(--topbar-bg)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        borderBottom: '1px solid var(--cream-dark)',
-        display: 'flex', alignItems: 'center',
-        padding: '0 20px', gap: 0,
-        overflowX: 'auto', scrollbarWidth: 'none',
-        pointerEvents: 'none',
-      }}>
+      <div
+        ref={railRef}
+        style={{
+          height: RAIL_H, flexShrink: 0,
+          background: 'var(--topbar-bg)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          borderBottom: '1px solid var(--cream-dark)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 20px', gap: 0,
+          overflowX: 'auto', scrollbarWidth: 'none',
+          pointerEvents: 'none',
+        }}
+      >
         {regions.map((region, i) => {
           const isActive = activeRegionId === region.id
           return (
             <div
               key={region.id}
+              data-nav-id={region.id}
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
                 paddingRight: 16, flexShrink: 0,
@@ -268,10 +310,13 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
             const rotation   = cardRotation(item.rotation_seed)
             const creator    = getUserById(item.created_by)
 
-            // Rating badge — show current user's rating if set
+            // Both users' ratings for caption hearts
             const itemReactions = reactions[item.id] ?? []
-            const myRating = itemReactions.find(r => r.user_id === user?.id)?.rating ?? null
-            const showRating = myRating != null && myRating > 0
+            const myReaction      = itemReactions.find(r => r.user_id === user?.id)
+            const partnerReaction = itemReactions.find(r => r.user_id !== user?.id)
+            const myRating      = myReaction?.rating ?? 0
+            const partnerRating = partnerReaction?.rating ?? 0
+            const partnerUser   = partnerReaction ? getUserById(partnerReaction.user_id) : null
 
             return (
               <div
@@ -376,17 +421,6 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                       </div>
                     )}
 
-                    {/* Rating badge (only if set) */}
-                    {showRating && (
-                      <div style={{
-                        position: 'absolute', bottom: 8, right: 8,
-                        background: 'var(--amber)', color: '#fff',
-                        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 400,
-                        padding: '2px 6px', borderRadius: 4,
-                      }}>
-                        {myRating}
-                      </div>
-                    )}
 
                     {/* Done stamp */}
                     {isDone && (
@@ -408,26 +442,24 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     )}
                   </div>
 
-                  {/* Caption strip */}
+                  {/* Caption strip — title + both heart votes */}
                   <div style={{
                     width: '100%', height: CAPTION_H,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '0 10px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '0 8px', gap: 4,
                     background: 'var(--card-bg)',
                   }}>
+                    <HeartVote rating={myRating} color={user?.avatar_color ?? '#e0a04a'} />
                     <span style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 10,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.12em',
+                      fontFamily: 'var(--font-mono)', fontSize: 8,
+                      textTransform: 'uppercase', letterSpacing: '0.1em',
                       color: 'var(--text-muted)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      flex: 1, textAlign: 'center',
                     }}>
                       {item.title}
                     </span>
+                    <HeartVote rating={partnerRating} color={partnerUser?.avatar_color ?? '#8a9abf'} />
                   </div>
                 </div>
 

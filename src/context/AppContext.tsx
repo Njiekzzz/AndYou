@@ -361,20 +361,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateItem = useCallback(async (id: string, updates: Partial<BucketItem>) => {
     if (!wall) return
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item))
     await updateDoc(itemDoc(wall.id, id), updates as Record<string, unknown>)
-  }, [wall])
+  }, [wall, setItems])
 
   const commitItem = useCallback(async (id: string) => {
     if (!wall) return
+    setItems(prev => prev.map(item => item.id === id ? { ...item, status: 'committed' } : item))
     await updateDoc(itemDoc(wall.id, id), { status: 'committed' })
-  }, [wall])
+  }, [wall, setItems])
 
   const completeItem = useCallback(async (id: string, realImageUrl?: string) => {
     if (!wall) return
     const updates: Partial<BucketItem> = { status: 'done' }
     if (realImageUrl) updates.real_image_url = realImageUrl
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item))
     await updateDoc(itemDoc(wall.id, id), updates as Record<string, unknown>)
-  }, [wall])
+  }, [wall, setItems])
 
   const deleteItem = useCallback(async (id: string) => {
     if (!wall) return

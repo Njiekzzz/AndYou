@@ -251,17 +251,6 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight, hide
             </div>
           )}
 
-          {isDone && item.real_image_url && (
-            <button
-              onClick={e => { e.stopPropagation(); setIsFlipped(f => !f) }}
-              style={{ position: 'absolute', bottom: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                <path d="M1 4.5C1 2.5 2.8 1 5 1s4 1.5 4 3.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
-                <path d="M8 4.5C8 6.5 6.2 8 4 8S0 6.5 0 4.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
         </div>
 
         {/* Caption */}

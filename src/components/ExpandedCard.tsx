@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BucketItem } from '../types'
 import { useApp } from '../context/AppContext'
@@ -33,7 +33,7 @@ function HeartRating({ rating, color, label }: { rating: number | null; color: s
 }
 
 export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
-  const { user, partner, getUserById, getItemReactions, deleteItem, setRating, regions, items, completeItem, uploadImage, updateItem } = useApp()
+  const { user, partner, getUserById, getItemReactions, deleteItem, setRating, regions, items, completeItem, commitItem, uploadImage, updateItem } = useApp()
 
   const liveItem = items.find(i => i.id === item.id) ?? item
 
@@ -50,9 +50,27 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const partnerColor = partnerUser?.avatar_color ?? '#8a9abf'
 
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [showingReal, setShowingReal] = useState(!!liveItem.real_image_url)
+  const [confirmDecline, setConfirmDecline] = useState(false)
   const [developing, setDeveloping] = useState(false)
+  const [justDeveloped, setJustDeveloped] = useState(false)
+  const [dateLabel, setDateLabel] = useState('')
+  const prevRealSrc = useRef(liveItem.real_image_url)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Detect when real photo first appears → trigger develop animation
+  useEffect(() => {
+    if (liveItem.real_image_url && !prevRealSrc.current) {
+      setJustDeveloped(true)
+      const d = new Date()
+      const mon = d.toLocaleString('en', { month: 'short' }).toLowerCase()
+      const yr = String(d.getFullYear()).slice(2)
+      setDateLabel(`${mon} · '${yr}`)
+    }
+    prevRealSrc.current = liveItem.real_image_url
+  }, [liveItem.real_image_url])
+
+  // Always show real photo when it exists, otherwise planned
+  const photoSrc = liveItem.real_image_url ?? liveItem.image_url
 
   const handleDevelop = async (file: File) => {
     setDeveloping(true)
@@ -63,10 +81,18 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
       } else {
         await updateItem(liveItem.id, { real_image_url: url })
       }
-      setShowingReal(true)
     } finally {
       setDeveloping(false)
     }
+  }
+
+  const handleAccept = async () => {
+    await commitItem(liveItem.id)
+  }
+
+  const handleDecline = async () => {
+    await deleteItem(liveItem.id)
+    onClose()
   }
 
   const handleDelete = async () => {
@@ -81,6 +107,10 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const formattedDate = liveItem.date
     ? new Date(liveItem.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null
+
+  const isMyProposal    = liveItem.status === 'proposed' && liveItem.created_by === user?.id
+  const isTheirProposal = liveItem.status === 'proposed' && liveItem.created_by !== user?.id
+  const isDevelopable   = !(liveItem.status === 'done' && liveItem.real_image_url)
 
   return (
     <AnimatePresence>
@@ -117,35 +147,76 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
             flexShrink: 0,
           }}
         >
-          {/* Photo — shows real memory photo when developed, planned image otherwise */}
-          <div style={{ position: 'relative', background: '#1a1814', flexShrink: 0 }}>
-            {(() => {
-              const displaySrc = showingReal && liveItem.real_image_url
-                ? liveItem.real_image_url
-                : liveItem.image_url
-              if (displaySrc) {
-                return (
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 160 }}>
-                    <img
-                      src={displaySrc}
-                      alt={liveItem.title}
-                      style={{ maxWidth: '100%', maxHeight: '65vh', width: 'auto', height: 'auto', display: 'block' }}
-                    />
-                  </div>
-                )
-              }
-              return (
-                <div style={{
-                  height: 200,
-                  background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 8,
-                }}>
-                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: '#fff' }}>&amp;you</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>UNDEVELOPED</span>
-                </div>
-              )
-            })()}
+          {/* ── Photo area ────────────────────────────────────────────── */}
+          <div style={{ position: 'relative', background: '#1a1814', flexShrink: 0, overflow: 'hidden' }}>
+            {photoSrc ? (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={photoSrc}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.55, ease: 'easeIn' }}
+                  style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 160 }}
+                >
+                  <img
+                    src={photoSrc}
+                    alt={liveItem.title}
+                    style={{ maxWidth: '100%', maxHeight: '65vh', width: 'auto', height: 'auto', display: 'block' }}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <div style={{
+                height: 200,
+                background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                {developing ? (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' }}>
+                    developing…
+                  </span>
+                ) : (
+                  <>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: '#fff' }}>&amp;you</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>UNDEVELOPED</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Grain flash + darkroom glow on develop */}
+            {justDeveloped && (
+              <motion.div
+                initial={{ opacity: 0.75 }}
+                animate={{ opacity: 0 }}
+                transition={{ duration: 1.4, ease: 'easeOut' }}
+                onAnimationComplete={() => setJustDeveloped(false)}
+                style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
+                  background: 'rgba(255,245,220,0.25)',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.75'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E")`,
+                }}
+              />
+            )}
+
+            {/* Date stamp — fades in after develop */}
+            {dateLabel && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.7 }}
+                style={{
+                  position: 'absolute', bottom: 10, right: 12,
+                  fontFamily: 'var(--font-mono)', fontSize: 9,
+                  color: 'rgba(255,255,255,0.7)', letterSpacing: '0.1em',
+                  pointerEvents: 'none',
+                }}
+              >
+                {dateLabel}
+              </motion.div>
+            )}
 
             {/* Done stamp */}
             {liveItem.status === 'done' && (
@@ -165,22 +236,6 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
               </div>
             )}
 
-            {/* Flip toggle — only when both images exist */}
-            {liveItem.real_image_url && liveItem.image_url && (
-              <button
-                onClick={() => setShowingReal(r => !r)}
-                style={{
-                  position: 'absolute', bottom: 10, left: 10,
-                  background: 'rgba(0,0,0,0.5)', border: 'none', cursor: 'pointer',
-                  borderRadius: 20, padding: '4px 10px',
-                  fontFamily: 'var(--font-mono)', fontSize: 9,
-                  color: 'rgba(255,255,255,0.85)', letterSpacing: '0.07em',
-                }}
-              >
-                {showingReal ? '← the plan' : 'the memory →'}
-              </button>
-            )}
-
             <button
               onClick={onClose}
               style={{
@@ -197,7 +252,7 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
             </button>
           </div>
 
-          {/* Creator strip */}
+          {/* ── Creator strip ────────────────────────────────────────── */}
           <div style={{
             height: 40, display: 'flex', alignItems: 'center',
             padding: '0 16px', gap: 8,
@@ -215,13 +270,81 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
                   {creator.name.charAt(0).toUpperCase()}
                 </div>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)' }}>
-                  {creator.name} added this
+                  {creator.name} proposed this
                 </span>
               </>
             )}
           </div>
 
-          {/* Body */}
+          {/* ── Accept / Decline (only for proposals, non-creator) ────── */}
+          {isMyProposal && (
+            <div style={{
+              padding: '10px 16px',
+              background: 'rgba(224,160,74,0.08)',
+              borderBottom: '1px solid var(--cream-dark)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" opacity="0.5">
+                <circle cx="6" cy="6" r="5" stroke="var(--amber)" strokeWidth="1.2"/>
+                <path d="M6 3v3.5l2 1" stroke="var(--amber)" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                waiting for {partnerUser?.name ?? 'them'} to accept…
+              </span>
+            </div>
+          )}
+
+          {isTheirProposal && !confirmDecline && (
+            <div style={{
+              padding: '12px 16px', display: 'flex', gap: 8,
+              borderBottom: '1px solid var(--cream-dark)',
+            }}>
+              <button
+                onClick={handleAccept}
+                style={{
+                  flex: 1, padding: '9px', borderRadius: 8,
+                  background: 'var(--amber)', color: '#2a2218',
+                  border: 'none', fontFamily: 'var(--font-sans)',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                accept ✓
+              </button>
+              <button
+                onClick={() => setConfirmDecline(true)}
+                style={{
+                  flex: 1, padding: '9px', borderRadius: 8,
+                  background: 'var(--cream-dark)', color: '#c94a3a',
+                  border: '1px solid rgba(201,74,58,0.25)',
+                  fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                decline ✗
+              </button>
+            </div>
+          )}
+
+          {confirmDecline && (
+            <div style={{
+              padding: '12px 16px',
+              background: 'rgba(201,74,58,0.06)',
+              borderBottom: '1px solid var(--cream-dark)',
+            }}>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-mid)', margin: '0 0 10px' }}>
+                Decline this idea? It'll be removed.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleDecline} style={{ flex: 1, padding: '8px', borderRadius: 8, background: '#c94a3a', color: '#fff', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer' }}>
+                  yes, decline
+                </button>
+                <button onClick={() => setConfirmDecline(false)} style={{ flex: 1, padding: '8px', borderRadius: 8, background: 'var(--cream-dark)', color: 'var(--text-mid)', border: 'none', fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer' }}>
+                  keep it
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Body ─────────────────────────────────────────────────── */}
           <div>
             {/* Title */}
             <div style={{ padding: '14px 16px 4px' }}>
@@ -271,27 +394,14 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
 
             <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
 
-            {/* ── Ratings section ──────────────────────────────────────── */}
+            {/* ── Ratings ──────────────────────────────────────────── */}
             <div style={{ padding: '16px 16px 8px' }}>
-              {/* Both users' heart ratings displayed */}
               <div style={{ display: 'flex', gap: 32, marginBottom: 16 }}>
-                <HeartRating
-                  rating={myRating > 0 ? myRating : null}
-                  color={myColor}
-                  label={user?.name ?? 'you'}
-                />
-                <HeartRating
-                  rating={partnerRating}
-                  color={partnerColor}
-                  label={partnerUser?.name ?? 'them'}
-                />
+                <HeartRating rating={myRating > 0 ? myRating : null} color={myColor} label={user?.name ?? 'you'} />
+                <HeartRating rating={partnerRating} color={partnerColor} label={partnerUser?.name ?? 'them'} />
               </div>
-
-              {/* 10 dots to set MY rating */}
               <div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
-                  tap to rate
-                </div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>tap to rate</div>
                 <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                   {Array.from({ length: 10 }, (_, i) => {
                     const dot = i + 1
@@ -321,66 +431,63 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
 
             <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
 
-            {/* ── Develop memory section ─────────────────────────────── */}
-            {!(liveItem.status === 'done' && liveItem.real_image_url) && (
-              <>
-                <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
-                <div style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <svg width="16" height="14" viewBox="0 0 16 14" fill="none">
-                      <rect x="0.75" y="2.75" width="14.5" height="10.5" rx="1.5" stroke="var(--amber)" strokeWidth="1.2"/>
-                      <circle cx="8" cy="8" r="2.5" stroke="var(--amber)" strokeWidth="1.2"/>
-                      <path d="M5 2.5L6 1h4l1 1.5" stroke="var(--amber)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--amber)' }}>
-                      {liveItem.status === 'done' ? 'add your memory photo' : 'develop this memory'}
-                    </span>
-                  </div>
-                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
-                    {liveItem.status === 'done'
-                      ? 'Upload a photo from when you did this — it\'ll develop onto the polaroid.'
-                      : 'Did you do this together? Upload a photo to develop the polaroid and mark it done.'}
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (file) handleDevelop(file)
-                      e.target.value = ''
-                    }}
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={developing}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 7,
-                      padding: '9px 16px', borderRadius: 999,
-                      background: developing ? 'var(--cream-dark)' : 'var(--amber)',
-                      border: 'none', cursor: developing ? 'default' : 'pointer',
-                      fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
-                      color: developing ? 'var(--text-muted)' : '#2a2218',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {developing ? (
-                      <>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em' }}>developing…</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                          <path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-                        </svg>
-                        choose photo
-                      </>
-                    )}
-                  </button>
+            {/* ── Develop memory ───────────────────────────────────── */}
+            {isDevelopable && (
+              <div style={{ padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <svg width="16" height="14" viewBox="0 0 16 14" fill="none">
+                    <rect x="0.75" y="2.75" width="14.5" height="10.5" rx="1.5" stroke="var(--amber)" strokeWidth="1.2"/>
+                    <circle cx="8" cy="8" r="2.5" stroke="var(--amber)" strokeWidth="1.2"/>
+                    <path d="M5 2.5L6 1h4l1 1.5" stroke="var(--amber)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--amber)' }}>
+                    {liveItem.status === 'done' ? 'add your memory photo' : 'develop this memory'}
+                  </span>
                 </div>
-              </>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+                  {liveItem.status === 'done'
+                    ? "Upload a photo from when you did this — it'll develop onto the polaroid."
+                    : "Did you do this together? Upload a photo to develop the polaroid and mark it done."}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (file) handleDevelop(file)
+                    e.target.value = ''
+                  }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={developing}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    padding: '9px 16px', borderRadius: 999,
+                    background: developing ? 'var(--cream-dark)' : 'var(--amber)',
+                    border: 'none', cursor: developing ? 'default' : 'pointer',
+                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+                    color: developing ? 'var(--text-muted)' : '#2a2218',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {developing ? (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em' }}>developing…</span>
+                  ) : (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                        <path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                      </svg>
+                      choose photo
+                    </>
+                  )}
+                </button>
+              </div>
             )}
+
+            {isDevelopable && <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />}
 
             {/* Edit */}
             <div style={{ padding: '12px 16px 4px' }}>
