@@ -314,6 +314,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
       position: 'fixed',
       top: TOPBAR_H, left: 0, right: 0, bottom: BOTTOMNAV_H,
       display: 'flex', flexDirection: 'column',
+      background: 'var(--cream)',
     }}>
 
       {/* ── Region indicator rail ────────────────────────────────────────── */}
@@ -375,7 +376,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
           backgroundImage: 'radial-gradient(circle, var(--dot-color) 1.2px, transparent 1.2px)',
           backgroundSize: '18px 18px',
           backgroundAttachment: 'local',
-          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'none',
           willChange: 'transform',
         } as React.CSSProperties}
       >
