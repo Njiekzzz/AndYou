@@ -157,7 +157,13 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
         >
           {/* ── Photo area ────────────────────────────────────────────── */}
           <div
-            style={{ position: 'relative', background: '#1a1814', flexShrink: 0, overflow: 'hidden', userSelect: 'none' }}
+            style={{
+              position: 'relative', background: '#1a1814', flexShrink: 0, overflow: 'hidden',
+              userSelect: 'none', WebkitUserSelect: 'none',
+              // @ts-ignore
+              WebkitTouchCallout: 'none',
+            }}
+            onContextMenu={e => e.preventDefault()}
             onPointerDown={() => canPeek && setPeeking(true)}
             onPointerUp={() => setPeeking(false)}
             onPointerLeave={() => setPeeking(false)}
@@ -176,7 +182,8 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
                   <img
                     src={photoSrc}
                     alt={liveItem.title}
-                    style={{ maxWidth: '100%', maxHeight: '65vh', width: 'auto', height: 'auto', display: 'block' }}
+                    draggable={false}
+                    style={{ maxWidth: '100%', maxHeight: '65vh', width: 'auto', height: 'auto', display: 'block', pointerEvents: 'none' }}
                   />
                 </motion.div>
               </AnimatePresence>

@@ -75,7 +75,7 @@ function HeartVote({ rating, color }: { rating: number; color: string }) {
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'var(--font-mono)', fontSize: 7, fontWeight: 700,
-          color: '#fff', paddingBottom: 2,
+          color: '#fff', lineHeight: 1, marginTop: -1,
         }}>
           {rating}
         </span>
