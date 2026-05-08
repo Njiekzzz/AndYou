@@ -11,6 +11,7 @@ interface PolaroidCardProps {
   isLocked: boolean
   onClick: () => void
   highlight?: boolean
+  hideThread?: boolean
 }
 
 const CARD_WIDTH = 140
@@ -102,7 +103,7 @@ function formatDateStamp(iso: string) {
   return `${mon} · '${yr}`
 }
 
-export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: PolaroidCardProps) {
+export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight, hideThread }: PolaroidCardProps) {
   const { user, getUserById, getItemReactions, polaroidStyle } = useApp()
   const [isFlipped, setIsFlipped] = useState(item.status === 'done' && !!item.real_image_url)
   const rotation = getRotationFromSeed(item.rotation_seed)
@@ -151,7 +152,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
       onClick={onClick}
     >
-      {!isAbove && thread}
+      {!isAbove && !hideThread && thread}
 
       <motion.div
         layoutId={`polaroid-${item.id}`}
@@ -304,7 +305,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight }: Po
         </div>
       </motion.div>
 
-      {isAbove && thread}
+      {isAbove && !hideThread && thread}
     </div>
   )
 }
