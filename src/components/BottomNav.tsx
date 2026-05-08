@@ -2,10 +2,10 @@ import { useApp } from '../context/AppContext'
 
 interface BottomNavProps {
   onAdd: () => void
-  onSpin: () => void
+  onSpin?: () => void
 }
 
-export function BottomNav({ onAdd, onSpin }: BottomNavProps) {
+export function BottomNav({ onAdd }: BottomNavProps) {
   const { activeView, setActiveView } = useApp()
 
   return (
@@ -51,27 +51,8 @@ export function BottomNav({ onAdd, onSpin }: BottomNavProps) {
         })}
       </div>
 
-      {/* Right — spin + add */}
+      {/* Right — add */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button
-          onClick={onSpin}
-          style={{
-            width: 44, height: 44, borderRadius: '50%',
-            background: 'var(--cream-dark)',
-            border: '1px solid var(--spine-color)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-          title="Surprise us"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-mid)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16 3l4 4-4 4"/>
-            <path d="M20 7H4"/>
-            <path d="M8 21l-4-4 4-4"/>
-            <path d="M4 17h16"/>
-          </svg>
-        </button>
-
         <button
           onClick={onAdd}
           style={{
