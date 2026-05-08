@@ -43,6 +43,7 @@ export interface BucketItem {
   position: number
   rotation_seed: number
   created_at: string
+  date?: string | null
 }
 
 export interface User {

@@ -1,269 +1,367 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BucketItem, ITEM_THEMES, ItemTheme } from '../types'
+import { BucketItem } from '../types'
 import { useApp } from '../context/AppContext'
-import { getRotationFromSeed } from '../lib/rotation'
-import { Avatar } from './Avatar'
-import { DevelopTransition } from './DevelopTransition'
 
 interface ExpandedCardProps {
   item: BucketItem
   onClose: () => void
+  onEdit: (item: BucketItem) => void
 }
 
-export function ExpandedCard({ item, onClose }: ExpandedCardProps) {
-  const { user, getUserById, getItemReactions, commitItem, completeItem, deleteItem, setRating, uploadImage, regions, items } = useApp()
+export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
+  const { user, partner, getUserById, getItemReactions, deleteItem, toggleHeart, setRating, regions, items } = useApp()
 
-  // Use the live item from context so updates (e.g. real_image_url) reflect immediately
+  // Always use live item from state so updates reflect immediately
   const liveItem = items.find(i => i.id === item.id) ?? item
 
-  const rotation = getRotationFromSeed(liveItem.rotation_seed)
   const creator = getUserById(liveItem.created_by)
-  const reactions = getItemReactions(liveItem.id)
-  const myReaction = reactions.find(r => r.user_id === user?.id)
-  const myRating = myReaction?.rating ?? 0
-  const partnerReaction = reactions.find(r => r.user_id !== user?.id)
-  const region = regions.find(r => r.id === liveItem.region_id)
+  const region  = regions.find(r => r.id === liveItem.region_id)
+  const itemReactions = getItemReactions(liveItem.id)
+  const myReaction      = itemReactions.find(r => r.user_id === user?.id)
+  const partnerReaction = itemReactions.find(r => r.user_id !== user?.id)
+  const myHeart   = myReaction?.heart === true
+  const myRating  = myReaction?.rating ?? 0
+  const partnerHasHeart = partnerReaction?.heart === true
+  const partnerUser = partner ?? (partnerReaction ? getUserById(partnerReaction.user_id) : null)
 
-  const isDone = liveItem.status === 'done'
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const [isFlipped, setIsFlipped] = useState(isDone && !!liveItem.real_image_url)
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (liveItem.real_image_url) setIsFlipped(true)
-  }, [liveItem.real_image_url])
-
-  const handleRealPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const url = await uploadImage(file)
-      await completeItem(liveItem.id, url)
-    } catch (err) {
-      console.error('Upload failed', err)
-    }
-    setUploading(false)
+  const handleDelete = async () => {
+    await deleteItem(liveItem.id)
+    onClose()
   }
 
-  const canCommit = liveItem.status === 'proposed' && liveItem.created_by !== user?.id
+  const handleHeart = () => toggleHeart(liveItem.id)
+  const handleDotClick = (dot: number) => {
+    // Tapping the same dot again clears rating
+    setRating(liveItem.id, dot === myRating ? 0 : dot)
+  }
+
+  const formattedDate = liveItem.date
+    ? new Date(liveItem.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null
 
   return (
     <AnimatePresence>
+      {/* Scrim */}
       <motion.div
         key="scrim"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(42,38,32,0.5)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
         onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          background: 'rgba(20,16,8,0.75)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+        }}
       >
+        {/* Card — stop propagation so tapping card doesn't close */}
         <motion.div
-          layoutId={`polaroid-${liveItem.id}`}
           key="card"
-          initial={{ scale: 0.85, opacity: 0 }}
+          initial={{ scale: 0.88, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.85, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          style={{
-            width: 'min(92vw, 380px)',
-            background: 'var(--bg-card)',
-            borderRadius: 3,
-            overflow: 'hidden',
-            position: 'relative',
-            zIndex: 51,
-          }}
-          className="polaroid-shadow"
+          exit={{ scale: 0.88, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 30 }}
           onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 'min(360px, calc(100vw - 40px))',
+            background: 'var(--card-bg)',
+            borderRadius: 4,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+            overflow: 'hidden',
+            maxHeight: 'calc(100vh - 80px)',
+            overflowY: 'auto',
+          }}
         >
-          {/* Close */}
-          <button
-            onClick={onClose}
-            style={{
-              position: 'absolute', top: 10, right: 10, width: 28, height: 28,
-              borderRadius: '50%', background: 'rgba(0,0,0,0.4)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 10, color: 'white',
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M1 1l8 8M9 1L1 9" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
-
-          {/* Image — develop transition handles animation + done stamp + flip */}
-          <div
-            style={{
-              height: 260,
-              background: 'var(--border)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <DevelopTransition
-              realSrc={liveItem.real_image_url}
-              plannedSrc={liveItem.image_url}
-              alt={liveItem.title}
-              isFlipped={isFlipped}
-              onFlip={() => setIsFlipped(f => !f)}
-              isDone={isDone}
-            />
-          </div>
-
-          {/* Content */}
-          <div style={{ padding: '14px 16px 18px' }}>
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <h2 style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1 }}>{liveItem.title}</h2>
-              {creator && <Avatar name={creator.name} color={creator.avatar_color} size={24} />}
-            </div>
-
-            <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
-              {region && (
-                <span style={{ fontSize: 10, background: 'var(--tape-bg)', color: 'var(--tape-text)', padding: '2px 7px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {region.name}
-                </span>
-              )}
-              <span style={{
-                fontSize: 10,
-                background: liveItem.mood === 'online' ? '#ddeedd' : '#dde4ee',
-                color: liveItem.mood === 'online' ? '#4a7a4a' : '#4a5a7a',
-                padding: '2px 7px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.08em',
+          {/* ── Photo area ───────────────────────────────────────────────── */}
+          <div style={{
+            width: '100%', height: 240,
+            background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
+            position: 'relative', overflow: 'hidden', flexShrink: 0,
+          }}>
+            {liveItem.image_url ? (
+              <img
+                src={liveItem.image_url}
+                alt={liveItem.title}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
-                {liveItem.mood}
-              </span>
-              {liveItem.theme && ITEM_THEMES[liveItem.theme as ItemTheme] && (() => {
-                const t = ITEM_THEMES[liveItem.theme as ItemTheme]
-                return (
-                  <span style={{
-                    fontSize: 10, padding: '2px 7px', borderRadius: 3,
-                    border: `1px solid ${t.borderColor}`,
-                    color: t.borderColor,
-                    letterSpacing: '0.08em',
-                  }}>
-                    {t.emoji} {t.label}
-                  </span>
-                )
-              })()}
-            </div>
-
-            {liveItem.description && (
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{liveItem.description}</p>
+                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: '#fff' }}>
+                  &amp;you
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 10,
+                  letterSpacing: '0.25em', color: 'rgba(255,255,255,0.55)',
+                  textTransform: 'uppercase',
+                }}>
+                  UNDEVELOPED
+                </span>
+              </div>
             )}
 
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              style={{
+                position: 'absolute', top: 10, right: 10,
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10, border: 'none', cursor: 'pointer',
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <path d="M1 1l9 9M10 1L1 10" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* ── Creator strip ─────────────────────────────────────────────── */}
+          <div style={{
+            height: 40, display: 'flex', alignItems: 'center',
+            padding: '0 16px', gap: 8,
+            borderBottom: '1px solid var(--cream-dark)',
+          }}>
+            {creator && (
+              <>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: creator.avatar_color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600, color: '#fff',
+                  flexShrink: 0,
+                }}>
+                  {creator.name.charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)' }}>
+                  {creator.name} added this
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* ── Card body ─────────────────────────────────────────────────── */}
+          <div>
+            {/* Title */}
+            <div style={{ padding: '14px 16px 4px' }}>
+              <h2 style={{
+                fontFamily: 'var(--font-sans)', fontSize: 22, fontWeight: 600,
+                color: 'var(--text-dark)', lineHeight: 1.2, margin: 0,
+              }}>
+                {liveItem.title}
+              </h2>
+            </div>
+
+            {/* Location */}
             {liveItem.location && (
-              <div className="flex items-center gap-1 mb-3" style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
-                  <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1z" stroke="currentColor" strokeWidth="1.2"/>
-                  <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
+              <div style={{
+                padding: '0 16px 12px',
+                display: 'flex', alignItems: 'center', gap: 5,
+                fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-muted)',
+              }}>
+                <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+                  <path d="M6 1C3.79 1 2 2.79 2 5c0 3.5 4 8 4 8s4-4.5 4-8c0-2.21-1.79-4-4-4z" stroke="currentColor" strokeWidth="1.2"/>
+                  <circle cx="6" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
                 </svg>
                 {liveItem.location}
               </div>
             )}
 
-            {/* Rating */}
-            <div className="mb-4">
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>dream it</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {/* Partner hearts — bigger, colored, shown first */}
-                {(partnerReaction?.rating ?? 0) > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 28, flexShrink: 0 }}>them</span>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <svg key={i} width="22" height="20" viewBox="0 0 10 9">
-                          <path
-                            d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
-                            fill={i < (partnerReaction?.rating ?? 0) ? '#c8745a' : 'none'}
-                            stroke={i < (partnerReaction?.rating ?? 0) ? '#c8745a' : 'var(--border)'}
-                            strokeWidth="0.6"
-                          />
-                        </svg>
-                      ))}
+            {/* Description */}
+            {liveItem.description && (
+              <div style={{
+                padding: '0 16px 12px',
+                fontFamily: 'var(--font-sans)', fontSize: 14,
+                color: 'var(--text-mid)', lineHeight: 1.6,
+              }}>
+                {liveItem.description}
+              </div>
+            )}
+
+            {/* Divider */}
+            <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
+
+            {/* Region + mood badges */}
+            <div style={{ padding: '12px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {region && (
+                <span style={{
+                  background: 'var(--cream-dark)', borderRadius: 12,
+                  padding: '4px 10px', fontSize: 12,
+                  fontFamily: 'var(--font-sans)', color: 'var(--text-mid)',
+                }}>
+                  {region.name}
+                </span>
+              )}
+              <span style={{
+                background: 'var(--cream-dark)', borderRadius: 12,
+                padding: '4px 10px', fontSize: 12,
+                fontFamily: 'var(--font-sans)', color: 'var(--text-mid)',
+              }}>
+                {liveItem.mood}
+              </span>
+            </div>
+
+            {/* Date row (only if set) */}
+            {formattedDate && (
+              <div style={{
+                padding: '0 16px 12px',
+                fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)',
+              }}>
+                {formattedDate}
+              </div>
+            )}
+
+            {/* Divider */}
+            <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
+
+            {/* Reaction + rating row */}
+            <div style={{ padding: '12px 16px 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              {/* Left: heart + partner heart */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={handleHeart}
+                  style={{
+                    padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {myHeart ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#e05070">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+
+                {/* Partner avatar + heart if they reacted */}
+                {partnerHasHeart && partnerUser && (
+                  <div style={{ position: 'relative' }}>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: partnerUser.avatar_color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'var(--font-sans)', fontSize: 9, fontWeight: 600, color: '#fff',
+                    }}>
+                      {partnerUser.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{
+                      position: 'absolute', bottom: -3, right: -3,
+                      width: 12, height: 12, borderRadius: '50%',
+                      background: 'var(--card-bg)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="#e05070">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
                     </div>
                   </div>
                 )}
-                {/* My hearts — smaller, clickable, animated */}
-                <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 28, flexShrink: 0 }}>you</span>
-                  <div className="flex items-center gap-1.5">
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const filled = i < myRating
-                      return (
-                        <motion.button
-                          key={i}
-                          onClick={() => setRating(liveItem.id, i + 1 === myRating ? 0 : i + 1)}
-                          whileTap={{ scale: 1.5 }}
-                          transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                          style={{ padding: 0, cursor: 'pointer', lineHeight: 1, display: 'flex' }}
-                        >
-                          <svg width="18" height="16" viewBox="0 0 10 9">
-                            <path
-                              d="M5,8.5 C5,8.5 0.5,5 0.5,2.5 C0.5,1.1 1.6,0 3,0 C3.8,0 4.5,0.4 5,1 C5.5,0.4 6.2,0 7,0 C8.4,0 9.5,1.1 9.5,2.5 C9.5,5 5,8.5 5,8.5 Z"
-                              fill={filled ? '#e0a04a' : 'none'}
-                              stroke={filled ? '#e0a04a' : 'var(--border)'}
-                              strokeWidth="0.6"
-                              style={{ transition: 'fill 0.2s, stroke 0.2s' }}
-                            />
-                          </svg>
-                        </motion.button>
-                      )
-                    })}
-                  </div>
+              </div>
+
+              {/* Right: 10-dot rating */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {Array.from({ length: 10 }, (_, i) => {
+                    const dot = i + 1
+                    const filled = dot <= myRating
+                    return (
+                      <button
+                        key={dot}
+                        onClick={() => handleDotClick(dot)}
+                        style={{
+                          width: 10, height: 10, borderRadius: '50%', padding: 0,
+                          background: filled ? 'var(--amber)' : 'var(--cream-dark)',
+                          border: filled ? 'none' : '1px solid var(--spine-color)',
+                          cursor: 'pointer', flexShrink: 0,
+                          transition: 'background 0.15s',
+                        }}
+                      />
+                    )
+                  })}
                 </div>
+                {myRating > 0 && (
+                  <span style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)',
+                  }}>
+                    {myRating} / 10
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 flex-wrap">
-              {canCommit && (
-                <button
-                  onClick={() => { commitItem(liveItem.id); onClose() }}
-                  style={{ flex: 1, padding: '8px 12px', background: '#e0a04a', color: '#2a2620', borderRadius: 999, fontSize: 13, fontWeight: 500 }}
-                >
-                  commit to this
-                </button>
-              )}
+            {/* Divider */}
+            <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
 
-              {liveItem.status === 'committed' && (
-                <button
-                  onClick={() => { completeItem(liveItem.id); onClose() }}
-                  style={{ flex: 1, padding: '8px 12px', background: '#e0a04a', color: '#2a2620', borderRadius: 999, fontSize: 13, fontWeight: 500 }}
-                >
-                  mark done
-                </button>
-              )}
-
-              {liveItem.status === 'done' && !liveItem.real_image_url && (
-                <>
-                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRealPhotoUpload} />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    style={{ flex: 1, padding: '8px 12px', background: 'var(--tape-bg)', color: 'var(--tape-text)', borderRadius: 6, fontSize: 13 }}
-                  >
-                    {uploading ? 'developing…' : 'develop memory'}
-                  </button>
-                </>
-              )}
-
+            {/* Edit button */}
+            <div style={{ padding: '12px 16px 4px' }}>
               <button
-                onClick={() => { deleteItem(liveItem.id); onClose() }}
-                style={{ padding: '8px 12px', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: 6, fontSize: 13 }}
+                onClick={() => { onClose(); onEdit(liveItem) }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+                  color: 'var(--amber)',
+                }}
               >
-                delete
+                edit this memory
               </button>
+            </div>
+
+            {/* Delete button + confirm */}
+            <div style={{ padding: '0 16px 20px' }}>
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                    fontFamily: 'var(--font-sans)', fontSize: 13,
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  remove from wall
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-mid)' }}>
+                    Remove this from the wall?
+                  </span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={handleDelete}
+                      style={{
+                        flex: 1, padding: '8px', borderRadius: 8,
+                        background: '#c94a3a', color: '#fff', border: 'none',
+                        fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer',
+                      }}
+                    >
+                      remove
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      style={{
+                        flex: 1, padding: '8px', borderRadius: 8,
+                        background: 'var(--cream-dark)', color: 'var(--text-mid)', border: 'none',
+                        fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer',
+                      }}
+                    >
+                      cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

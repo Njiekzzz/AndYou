@@ -15,6 +15,7 @@ export function MainApp() {
   const { activeView, items } = useApp()
   const [selectedItem, setSelectedItem] = useState<BucketItem | null>(null)
   const [addSheetOpen, setAddSheetOpen] = useState(false)
+  const [editItem, setEditItem] = useState<BucketItem | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [spinTarget, setSpinTarget] = useState<string | null>(null)
 
@@ -22,7 +23,6 @@ export function MainApp() {
     const eligible = items.filter(i => i.status !== 'done' && i.status !== 'proposed')
     if (eligible.length === 0) return
 
-    // Rapid scroll simulation then settle
     let count = 0
     const totalFlips = 8 + Math.floor(Math.random() * 6)
     const interval = setInterval(() => {
@@ -37,6 +37,22 @@ export function MainApp() {
       }
     }, 120)
   }, [items])
+
+  const handleOpenAdd = useCallback(() => {
+    setEditItem(null)
+    setAddSheetOpen(true)
+  }, [])
+
+  const handleEditItem = useCallback((item: BucketItem) => {
+    setSelectedItem(null)
+    setEditItem(item)
+    setAddSheetOpen(true)
+  }, [])
+
+  const handleSheetClose = useCallback(() => {
+    setAddSheetOpen(false)
+    setEditItem(null)
+  }, [])
 
   return (
     <>
@@ -60,7 +76,7 @@ export function MainApp() {
       {activeView === 'timeline' && <MomentumCounter />}
 
       <BottomNav
-        onAdd={() => setAddSheetOpen(true)}
+        onAdd={handleOpenAdd}
         onSpin={handleSpin}
       />
 
@@ -70,13 +86,15 @@ export function MainApp() {
             key={selectedItem.id}
             item={selectedItem}
             onClose={() => setSelectedItem(null)}
+            onEdit={handleEditItem}
           />
         )}
       </AnimatePresence>
 
       <AddItemSheet
         open={addSheetOpen}
-        onClose={() => setAddSheetOpen(false)}
+        onClose={handleSheetClose}
+        editItem={editItem}
       />
 
       <SettingsSheet

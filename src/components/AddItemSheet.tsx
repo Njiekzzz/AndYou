@@ -1,18 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { ItemMood, ItemStatus, ItemTheme, ITEM_THEMES } from '../types'
+import { BucketItem, ItemMood, ItemStatus, ItemTheme, ITEM_THEMES } from '../types'
 import { requestNotificationPermission } from '../lib/notifications'
-
-
 
 interface AddItemSheetProps {
   open: boolean
   onClose: () => void
+  editItem?: BucketItem | null
 }
 
-export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
+export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
   const { regions, addItem, updateItem, uploadImage } = useApp()
+  const isEditMode = !!editItem
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -21,16 +21,29 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
   const [regionId, setRegionId] = useState('')
   const [status, setStatus] = useState<ItemStatus>('committed')
   const [itemTheme, setItemTheme] = useState<ItemTheme | null>(null)
+  const [date, setDate] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Pre-fill form when opening in edit mode
   useEffect(() => {
-    if (open && regions.length > 0 && !regionId) {
+    if (open && editItem) {
+      setTitle(editItem.title)
+      setDescription(editItem.description ?? '')
+      setLocation(editItem.location ?? '')
+      setMood(editItem.mood)
+      setRegionId(editItem.region_id)
+      setStatus(editItem.status)
+      setItemTheme((editItem.theme as ItemTheme) ?? null)
+      setDate(editItem.date ?? '')
+      setImagePreview(editItem.image_url ?? null)
+      setImageFile(null)
+    } else if (open && regions.length > 0 && !regionId) {
       setRegionId(regions[0].id)
     }
-  }, [open, regions, regionId])
+  }, [open, editItem]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => {
     setTitle('')
@@ -39,6 +52,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
     setMood('physical')
     setStatus('committed')
     setItemTheme(null)
+    setDate('')
     setImageFile(null)
     setImagePreview(null)
     setRegionId('')
@@ -64,31 +78,58 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
     setSaving(true)
     requestNotificationPermission().catch(() => {})
 
-    // Use a local blob URL immediately so the image shows right away
-    const blobUrl = imageFile ? URL.createObjectURL(imageFile) : null
-
     try {
-      const itemId = await addItem({
-        title: title.trim(),
-        description: description.trim() || null,
-        image_url: blobUrl,
-        real_image_url: null,
-        location: location.trim() || null,
-        mood,
-        theme: itemTheme,
-        region_id: regionId,
-        status,
-      })
-      handleClose()
+      if (isEditMode && editItem) {
+        // Edit existing item
+        const updates: Partial<BucketItem> = {
+          title: title.trim(),
+          description: description.trim() || null,
+          location: location.trim() || null,
+          mood,
+          theme: itemTheme,
+          region_id: regionId,
+          status,
+          date: date.trim() || null,
+        }
 
-      // Upload the real file to Supabase in the background, then swap the URL
-      if (imageFile && itemId) {
-        uploadImage(imageFile)
-          .then(realUrl => updateItem(itemId, { image_url: realUrl }))
-          .catch(err => console.warn('Background image upload failed:', err))
+        // If a new image was selected, upload it
+        if (imageFile) {
+          const blobUrl = URL.createObjectURL(imageFile)
+          updates.image_url = blobUrl
+          await updateItem(editItem.id, updates)
+          handleClose()
+          uploadImage(imageFile)
+            .then(realUrl => updateItem(editItem.id, { image_url: realUrl }))
+            .catch(err => console.warn('Background image upload failed:', err))
+        } else {
+          await updateItem(editItem.id, updates)
+          handleClose()
+        }
+      } else {
+        // Add new item
+        const blobUrl = imageFile ? URL.createObjectURL(imageFile) : null
+        const itemId = await addItem({
+          title: title.trim(),
+          description: description.trim() || null,
+          image_url: blobUrl,
+          real_image_url: null,
+          location: location.trim() || null,
+          mood,
+          theme: itemTheme,
+          region_id: regionId,
+          status,
+          date: date.trim() || null,
+        })
+        handleClose()
+
+        if (imageFile && itemId) {
+          uploadImage(imageFile)
+            .then(realUrl => updateItem(itemId, { image_url: realUrl }))
+            .catch(err => console.warn('Background image upload failed:', err))
+        }
       }
     } catch (err) {
-      console.error('Failed to add item', err)
+      console.error('Failed to save item', err)
       setSaving(false)
     }
   }
@@ -103,8 +144,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             style={{
-              position: 'fixed',
-              inset: 0,
+              position: 'fixed', inset: 0,
               background: 'rgba(42,38,32,0.4)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
@@ -124,9 +164,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
             onDragEnd={(_: unknown, info: { offset: { y: number } }) => { if (info.offset.y > 80) handleClose() }}
             style={{
               position: 'fixed',
-              bottom: 0,
-              left: 0,
-              right: 0,
+              bottom: 0, left: 0, right: 0,
               zIndex: 61,
               background: 'var(--sheet-bg)',
               borderRadius: '24px 24px 0 0',
@@ -143,30 +181,25 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
 
             <div style={{ padding: '8px 20px 24px' }}>
               <div className="flex items-center justify-between mb-5">
-                <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>add to your wall</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>
+                  {isEditMode ? 'edit memory' : 'add to your wall'}
+                </h2>
                 <button onClick={handleClose} style={{ color: 'var(--text-muted)', fontSize: 22, lineHeight: 1 }}>×</button>
               </div>
 
               {/* Image upload */}
               <div className="mb-4">
                 <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
-                {/* div not button — avoids invalid nested <button> */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
                   style={{
-                    width: '100%',
-                    aspectRatio: '4/3',
-                    background: 'var(--border)',
-                    borderRadius: 4,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    cursor: 'pointer',
+                    width: '100%', aspectRatio: '4/3',
+                    background: 'var(--border)', borderRadius: 4,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden', position: 'relative', cursor: 'pointer',
                   }}
                 >
                   {imagePreview ? (
@@ -178,25 +211,19 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                         <circle cx="8.5" cy="10.5" r="1.5" stroke="currentColor" strokeWidth="1.5"/>
                         <path d="M21 15l-5-5-4 4-2-2-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                       </svg>
-                      <span style={{ fontSize: 12 }}>tap to add a photo</span>
+                      <span style={{ fontSize: 12 }}>
+                        {isEditMode ? 'change photo' : 'tap to add a photo'}
+                      </span>
                     </div>
                   )}
                   {imagePreview && (
                     <button
                       onClick={e => { e.stopPropagation(); setImageFile(null); setImagePreview(null) }}
                       style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        background: 'rgba(0,0,0,0.5)',
-                        color: '#fff',
-                        fontSize: 14,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        position: 'absolute', top: 8, right: 8,
+                        width: 24, height: 24, borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 14,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
                     >×</button>
                   )}
@@ -239,6 +266,16 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                 />
               </div>
 
+              {/* Date (optional) */}
+              <div className="mb-3">
+                <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>date (optional)</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                />
+              </div>
+
               {/* Theme */}
               <div className="mb-3">
                 <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>theme</label>
@@ -248,9 +285,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                       key={key}
                       onClick={() => setItemTheme(itemTheme === key ? null : key)}
                       style={{
-                        padding: '5px 10px',
-                        borderRadius: 20,
-                        fontSize: 12,
+                        padding: '5px 10px', borderRadius: 20, fontSize: 12,
                         border: `1.5px solid ${itemTheme === key ? t.borderColor : 'var(--border)'}`,
                         background: itemTheme === key ? `${t.borderColor}22` : 'transparent',
                         color: itemTheme === key ? t.borderColor : 'var(--text-secondary)',
@@ -273,10 +308,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                         key={m}
                         onClick={() => setMood(m)}
                         style={{
-                          flex: 1,
-                          padding: '7px 4px',
-                          borderRadius: 999,
-                          fontSize: 12,
+                          flex: 1, padding: '7px 4px', borderRadius: 999, fontSize: 12,
                           border: `1px solid ${mood === m ? '#3a7a78' : 'var(--border)'}`,
                           background: mood === m ? '#3a7a78' : 'transparent',
                           color: mood === m ? '#fdf8eb' : 'var(--text-secondary)',
@@ -299,7 +331,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                 </div>
               </div>
 
-              {/* Propose vs add */}
+              {/* Status (only for new items or propose toggle) */}
               <div className="mb-5">
                 <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>add as</label>
                 <div className="flex gap-2">
@@ -308,10 +340,7 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                       key={s}
                       onClick={() => setStatus(s)}
                       style={{
-                        flex: 1,
-                        padding: '7px 4px',
-                        borderRadius: 999,
-                        fontSize: 12,
+                        flex: 1, padding: '7px 4px', borderRadius: 999, fontSize: 12,
                         border: `1px solid ${status === s ? '#e0a04a' : 'var(--border)'}`,
                         background: status === s ? '#e0a04a' : 'transparent',
                         color: status === s ? '#2a2620' : 'var(--text-secondary)',
@@ -329,18 +358,14 @@ export function AddItemSheet({ open, onClose }: AddItemSheetProps) {
                 onClick={handleSave}
                 disabled={!title.trim() || !regionId || saving}
                 style={{
-                  width: '100%',
-                  padding: '13px',
-                  background: '#e0a04a',
-                  color: '#2a2620',
-                  borderRadius: 999,
-                  fontSize: 15,
-                  fontWeight: 500,
+                  width: '100%', padding: '13px',
+                  background: '#e0a04a', color: '#2a2620',
+                  borderRadius: 999, fontSize: 15, fontWeight: 500,
                   transition: 'opacity 0.15s',
                   opacity: (!title.trim() || !regionId || saving) ? 0.45 : 1,
                 }}
               >
-                {saving ? 'saving…' : status === 'proposed' ? 'propose dream' : 'add to wall'}
+                {saving ? 'saving…' : isEditMode ? 'save changes' : status === 'proposed' ? 'propose dream' : 'add to wall'}
               </button>
             </div>
           </motion.div>
