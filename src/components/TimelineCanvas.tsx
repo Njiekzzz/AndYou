@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { BucketItem, Region } from '../types'
+import { BucketItem, Region, ItemTheme, ITEM_THEMES } from '../types'
 
 // ─── Dimensions ──────────────────────────────────────────────────────────────
 const TOPBAR_H     = 64
@@ -55,6 +55,123 @@ function buildLayout(regions: Region[], items: BucketItem[]) {
 interface TimelineCanvasProps {
   onItemClick: (item: BucketItem) => void
   spinTarget?: string | null
+}
+
+// ─── Themed polaroid border SVG overlay ──────────────────────────────────────
+function ThemeBorderSVG({ theme }: { theme: ItemTheme | null | undefined }) {
+  if (!theme || !(theme in ITEM_THEMES)) return null
+  const c = ITEM_THEMES[theme].borderColor
+  const W = CARD_W       // 160
+  const H = PHOTO_H + CAPTION_H  // 184
+
+  const border = (
+    <rect x="1" y="1" width={W - 2} height={H - 2} rx="2"
+      fill="none" stroke={c} strokeWidth="1.8" opacity="0.55" />
+  )
+
+  let deco: React.ReactNode = null
+
+  if (theme === 'adventure') {
+    deco = <>
+      {/* Pine trees — top-left */}
+      <path d="M4,38 L11,22 L18,38Z" fill={c} opacity="0.22"/>
+      <path d="M6,31 L11,17 L16,31Z" fill={c} opacity="0.26"/>
+      <path d="M8,24 L11,12 L14,24Z" fill={c} opacity="0.28"/>
+      <rect x="10" y="38" width="2" height="5" fill={c} opacity="0.22"/>
+      {/* Mountain ridge — bottom-right */}
+      <path d={`M${W-44},${H-2} L${W-28},${H-22} L${W-18},${H-12} L${W-8},${H-26} L${W-2},${H-14} L${W-2},${H-2}Z`} fill={c} opacity="0.18"/>
+      {/* Leaf — top-right */}
+      <path d={`M${W-4},6 C${W-16},4 ${W-20},18 ${W-8},18 C${W-4},18 ${W-2},12 ${W-4},6Z`} fill={c} opacity="0.24"/>
+      <line x1={W-4} y1="6" x2={W-12} y2="16" stroke={c} strokeWidth="0.8" opacity="0.35"/>
+      {/* Pebbles — bottom-left */}
+      <ellipse cx="8" cy={H-5} rx="6" ry="3" fill={c} opacity="0.16"/>
+      <ellipse cx="19" cy={H-6} rx="4" ry="2.5" fill={c} opacity="0.16"/>
+      <ellipse cx="28" cy={H-5} rx="3" ry="2" fill={c} opacity="0.13"/>
+    </>
+  } else if (theme === 'splurge') {
+    deco = <>
+      {/* Diamond outlines — all 4 corners */}
+      <path d="M10,2 L17,9 L10,16 L3,9Z" fill={c} fillOpacity="0.18" stroke={c} strokeWidth="1" strokeOpacity="0.55"/>
+      <path d={`M${W-10},2 L${W-3},9 L${W-10},16 L${W-17},9Z`} fill={c} fillOpacity="0.18" stroke={c} strokeWidth="1" strokeOpacity="0.55"/>
+      <path d={`M10,${H-16} L17,${H-9} L10,${H-2} L3,${H-9}Z`} fill={c} fillOpacity="0.18" stroke={c} strokeWidth="1" strokeOpacity="0.55"/>
+      <path d={`M${W-10},${H-16} L${W-3},${H-9} L${W-10},${H-2} L${W-17},${H-9}Z`} fill={c} fillOpacity="0.18" stroke={c} strokeWidth="1" strokeOpacity="0.55"/>
+      {/* Coin rings — midway on sides */}
+      <circle cx="3" cy={H / 2} r="7" fill="none" stroke={c} strokeWidth="1" opacity="0.35"/>
+      <circle cx="3" cy={H / 2} r="4" fill="none" stroke={c} strokeWidth="0.6" opacity="0.25"/>
+      <circle cx={W - 3} cy={H / 2} r="7" fill="none" stroke={c} strokeWidth="1" opacity="0.35"/>
+      <circle cx={W - 3} cy={H / 2} r="4" fill="none" stroke={c} strokeWidth="0.6" opacity="0.25"/>
+      {/* Tiny gem dots along top */}
+      <circle cx={W / 2} cy="3" r="2" fill={c} opacity="0.4"/>
+      <circle cx={W / 2 - 12} cy="3" r="1.2" fill={c} opacity="0.3"/>
+      <circle cx={W / 2 + 12} cy="3" r="1.2" fill={c} opacity="0.3"/>
+    </>
+  } else if (theme === 'spicy') {
+    deco = <>
+      {/* Flames — top-left */}
+      <path d="M5,26 C5,19 9,16 7,9 C11,13 10,20 14,16 C13,21 11,24 13,29 C10,27 8,22 5,26Z" fill={c} opacity="0.28"/>
+      <path d="M12,28 C12,22 16,20 14,14 C17,18 16,23 20,20 C19,25 17,27 19,31 C16,30 14,25 12,28Z" fill={c} opacity="0.24"/>
+      {/* Flames — bottom-right */}
+      <path d={`M${W-5},${H-26} C${W-5},${H-19} ${W-9},${H-16} ${W-7},${H-9} C${W-11},${H-13} ${W-10},${H-20} ${W-14},${H-16} C${W-13},${H-21} ${W-11},${H-24} ${W-13},${H-29} C${W-10},${H-27} ${W-8},${H-22} ${W-5},${H-26}Z`} fill={c} opacity="0.28"/>
+      {/* Small hearts — top-right */}
+      <path d={`M${W-9},7 C${W-9},5 ${W-7},4 ${W-7},6 C${W-7},4 ${W-5},5 ${W-5},7 C${W-5},9 ${W-7},11 ${W-7},11 C${W-7},11 ${W-9},9 ${W-9},7Z`} fill={c} opacity="0.5"/>
+      <path d={`M${W-15},12 C${W-15},10.5 ${W-13.5},9.5 ${W-13.5},11.5 C${W-13.5},9.5 ${W-12},10.5 ${W-12},12 C${W-12},13.5 ${W-13.5},15 ${W-13.5},15 C${W-13.5},15 ${W-15},13.5 ${W-15},12Z`} fill={c} opacity="0.4"/>
+      {/* Heart — bottom-left */}
+      <path d="M7,168 C7,166 9,165 9,167 C9,165 11,166 11,168 C11,170 9,172 9,172 C9,172 7,170 7,168Z" fill={c} opacity="0.45"/>
+      {/* Dot trail */}
+      <circle cx={W / 2 - 6} cy="3" r="1.5" fill={c} opacity="0.35"/>
+      <circle cx={W / 2} cy="3" r="2" fill={c} opacity="0.4"/>
+      <circle cx={W / 2 + 6} cy="3" r="1.5" fill={c} opacity="0.35"/>
+    </>
+  } else if (theme === 'cozy') {
+    deco = <>
+      {/* Crescent moon — top-right */}
+      <path d={`M${W-5},4 C${W-15},6 ${W-18},18 ${W-9},22 C${W-22},20 ${W-22},6 ${W-5},4Z`} fill={c} opacity="0.45"/>
+      {/* 4-point star — top-left */}
+      <path d="M12,2 L13.8,7.2 L19,9 L13.8,10.8 L12,16 L10.2,10.8 L5,9 L10.2,7.2Z" fill={c} opacity="0.35"/>
+      {/* Small star — bottom-right */}
+      <path d={`M${W-11},${H-18} L${W-9.5},${H-22} L${W-8},${H-18} L${W-4},${H-16.5} L${W-8},${H-15} L${W-9.5},${H-11} L${W-11},${H-15} L${W-15},${H-16.5}Z`} fill={c} opacity="0.3"/>
+      {/* Tiny star dots */}
+      <circle cx="4" cy="4" r="1.2" fill={c} opacity="0.5"/>
+      <circle cx="24" cy="9" r="0.9" fill={c} opacity="0.35"/>
+      <circle cx={W / 2} cy="4" r="1.2" fill={c} opacity="0.35"/>
+      <circle cx={W - 32} cy="8" r="0.8" fill={c} opacity="0.28"/>
+      <circle cx="8" cy="32" r="0.9" fill={c} opacity="0.28"/>
+      {/* Cloud — bottom-left */}
+      <path d="M2,176 Q7,168 16,172 Q16,164 26,167 Q28,164 32,168 Q40,167 40,175 Q40,183 2,183 Q0,183 2,176Z" fill={c} opacity="0.15"/>
+    </>
+  } else if (theme === 'experience') {
+    deco = <>
+      {/* 8-point starburst — top-left */}
+      <path d="M12,2 L13.4,7 L17.5,4.5 L15.5,9 L20.5,9.5 L16.5,12 L20,15.5 L14.8,14.5 L14,20 L11.5,15.2 L7.5,18.5 L8.5,13.2 L3,12.5 L7.5,10 L4.5,5.5 L9.5,7.8Z" fill={c} opacity="0.28"/>
+      {/* Confetti rectangles — top-right */}
+      <rect x={W - 16} y="3" width="5" height="3" rx="1" fill={c} opacity="0.35" transform={`rotate(22,${W - 13},4.5)`}/>
+      <rect x={W - 9} y="7" width="4" height="2.5" rx="1" fill={c} opacity="0.3" transform={`rotate(-32,${W - 7},8.25)`}/>
+      <rect x={W - 22} y="8" width="3.5" height="2" rx="0.5" fill={c} opacity="0.25" transform={`rotate(50,${W - 20},9)`}/>
+      <circle cx={W - 18} cy="4" r="2.2" fill={c} opacity="0.3"/>
+      <circle cx={W - 6} cy="13" r="1.5" fill={c} opacity="0.25"/>
+      {/* Confetti — bottom-left */}
+      <rect x="4" y={H - 14} width="4.5" height="2.5" rx="1" fill={c} opacity="0.3" transform={`rotate(-28,6.25,${H - 12.75})`}/>
+      <rect x="11" y={H - 9} width="3" height="2" rx="0.5" fill={c} opacity="0.25" transform={`rotate(42,12.5,${H - 8})`}/>
+      <circle cx="7" cy={H - 7} r="2" fill={c} opacity="0.3"/>
+      {/* Star — bottom-right */}
+      <path d={`M${W - 10},${H - 20} L${W - 8.5},${H - 25} L${W - 7},${H - 20} L${W - 2},${H - 18} L${W - 7},${H - 16} L${W - 8.5},${H - 11} L${W - 10},${H - 16} L${W - 15},${H - 18}Z`} fill={c} opacity="0.3"/>
+      {/* Dots along top */}
+      <circle cx={W / 2} cy="3" r="1.8" fill={c} opacity="0.32"/>
+      <circle cx={W / 2 - 10} cy="4" r="1.1" fill={c} opacity="0.25"/>
+      <circle cx={W / 2 + 10} cy="4" r="1.1" fill={c} opacity="0.25"/>
+    </>
+  }
+
+  return (
+    <svg
+      width={W} height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 4 }}
+    >
+      {border}
+      {deco}
+    </svg>
+  )
 }
 
 // ─── Mini heart vote badge ────────────────────────────────────────────────────
@@ -461,6 +578,9 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     </span>
                     <HeartVote rating={partnerRating} color={partnerUser?.avatar_color ?? '#8a9abf'} />
                   </div>
+
+                  {/* Themed border overlay */}
+                  {item.theme && <ThemeBorderSVG theme={item.theme as ItemTheme} />}
                 </div>
 
                 {/* Text block — opposite side */}
