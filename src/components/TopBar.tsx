@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { Avatar } from './Avatar'
 import { ProfileSheet } from './ProfileSheet'
+import { ThemeToggle } from './ThemeToggle'
 
 interface TopBarProps {
   onOpenSettings?: () => void
 }
 
 export function TopBar({ onOpenSettings }: TopBarProps) {
-  const { user, partner, toggleTheme, theme, wall } = useApp()
+  const { user, partner, wall } = useApp()
   const [profileOpen, setProfileOpen] = useState(false)
 
   return (
@@ -97,22 +98,7 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
             </svg>
           </button>
         )}
-        <button
-          onClick={toggleTheme}
-          className="w-8 h-8 flex items-center justify-center rounded-full transition-opacity hover:opacity-70"
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-        >
-          {theme === 'dark' ? (
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="4" stroke="var(--text-secondary)" strokeWidth="1.5"/>
-              <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.22 3.22l1.06 1.06M11.72 11.72l1.06 1.06M3.22 12.78l1.06-1.06M11.72 4.28l1.06-1.06" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          )}
-        </button>
+        <ThemeToggle />
       </div>
     </div>
     <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} />
