@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { BucketItem, ItemMood, ItemStatus, ItemTheme, ITEM_THEMES } from '../types'
@@ -26,6 +26,9 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const handleTouchStart = useRef(0)
+  const onHandleTouchStart = useCallback((e: React.TouchEvent) => { handleTouchStart.current = e.touches[0].clientY }, [])
+  const onHandleTouchEnd = useCallback((e: React.TouchEvent) => { if (e.changedTouches[0].clientY - handleTouchStart.current > 80) handleClose() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pre-fill form when opening in edit mode
   useEffect(() => {
@@ -158,28 +161,30 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 280, damping: 30, mass: 0.8 }}
-            drag="y"
-            dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3 }}
-            onDragEnd={(_: unknown, info: { offset: { y: number } }) => { if (info.offset.y > 80) handleClose() }}
             style={{
               position: 'fixed',
               bottom: 0, left: 0, right: 0,
               zIndex: 61,
               background: 'var(--sheet-bg)',
               borderRadius: '24px 24px 0 0',
-              padding: '0 0 env(safe-area-inset-bottom)',
               maxHeight: '92vh',
-              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
+            {/* Handle — drag-to-close only on this strip */}
+            <div
+              onTouchStart={onHandleTouchStart}
+              onTouchEnd={onHandleTouchEnd}
+              style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 8, flexShrink: 0, cursor: 'grab' }}
+            >
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 
-            <div style={{ padding: '8px 20px 24px' }}>
+            {/* Scrollable content */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div style={{ padding: '0 20px 24px' }}>
               <div className="flex items-center justify-between mb-5">
                 <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>
                   {isEditMode ? 'edit memory' : 'add to your wall'}
@@ -368,6 +373,7 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
                 {saving ? 'saving…' : isEditMode ? 'save changes' : status === 'proposed' ? 'propose dream' : 'add to wall'}
               </button>
             </div>
+            </div>{/* end scrollable content */}
           </motion.div>
         </>
       )}
