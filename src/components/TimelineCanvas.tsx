@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { PolaroidCard, CARD_WIDTH_EXPORT, THREAD_LENGTH_EXPORT } from './PolaroidCard'
 import { Region, BucketItem } from '../types'
