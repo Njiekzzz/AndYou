@@ -1,107 +1,112 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { Avatar } from './Avatar'
 import { ProfileSheet } from './ProfileSheet'
-import { ThemeToggle } from './ThemeToggle'
 
 interface TopBarProps {
   onOpenSettings?: () => void
 }
 
 export function TopBar({ onOpenSettings }: TopBarProps) {
-  const { user, partner, wall } = useApp()
+  const { user, partner, toggleTheme, theme } = useApp()
   const [profileOpen, setProfileOpen] = useState(false)
+
+  const initial = (name: string) => name.charAt(0).toUpperCase()
 
   return (
     <>
-    <div
-      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4"
-      style={{
-        height: 52,
-        background: 'var(--nav-bg)',
-        borderBottom: '1px solid var(--nav-border)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
-      <button
-        className="flex items-center gap-2"
-        onClick={() => setProfileOpen(true)}
-        style={{ background: 'none', padding: '4px 0' }}
-      >
-        <div className="flex items-center" style={{ position: 'relative', width: user && partner ? 44 : 28 }}>
-          {user && (
-            <Avatar
-              name={user.name}
-              color={user.avatar_color}
-              size={26}
-              borderColor="var(--avatar-border)"
-              borderWidth={1.5}
-            />
-          )}
-          {partner && (
-            <Avatar
-              name={partner.name}
-              color={partner.avatar_color}
-              size={26}
-              borderColor="var(--avatar-border)"
-              borderWidth={1.5}
-              style={{ position: 'absolute', left: 16 }}
-            />
-          )}
-        </div>
-        <span
-          style={{
-            fontFamily: '"Fraunces", Georgia, serif',
-            fontSize: 22,
-            fontWeight: 400,
-            letterSpacing: '-0.01em',
-            lineHeight: 1,
-            color: 'var(--text-primary)',
-          }}
-        >
-          <span style={{ fontStyle: 'italic', color: '#c8745a' }}>&</span>you
-        </span>
-      </button>
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+        height: 64,
+        background: 'var(--topbar-bg)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        borderBottom: '1px solid var(--cream-dark)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 20px',
+      }}>
 
-      {/* Wall name centered — Fraunces italic */}
-      {wall?.name && (
+        {/* Left — avatar stack */}
+        <button
+          onClick={() => setProfileOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+        >
+          <div style={{ position: 'relative', width: user && partner ? 54 : 36, height: 36 }}>
+            {user && (
+              <div style={{
+                position: 'absolute', left: 0, zIndex: 2,
+                width: 36, height: 36, borderRadius: '50%',
+                background: user.avatar_color || '#c8a86a',
+                border: '2px solid var(--cream)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: '#fff',
+              }}>
+                {initial(user.name)}
+              </div>
+            )}
+            {partner && (
+              <div style={{
+                position: 'absolute', left: 18, zIndex: 1,
+                width: 36, height: 36, borderRadius: '50%',
+                background: partner.avatar_color || '#8a9abf',
+                border: '2px solid var(--cream)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: '#fff',
+              }}>
+                {initial(partner.name)}
+              </div>
+            )}
+          </div>
+        </button>
+
+        {/* Center — &you, absolutely centered */}
         <div style={{
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontFamily: 'var(--font-display)',
-          fontSize: 17,
-          fontWeight: 400,
+          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+          fontFamily: 'var(--font-serif)',
           fontStyle: 'italic',
-          color: 'var(--text-primary)',
+          fontSize: 22,
+          fontWeight: 400,
+          color: 'var(--text-dark)',
           letterSpacing: '-0.01em',
           pointerEvents: 'none',
-          maxWidth: '38%',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          {wall.name}
+          &amp;you
         </div>
-      )}
 
-      <div className="flex items-center gap-2">
-        {onOpenSettings && (
+        {/* Right — settings + theme toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
+              title="Settings"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-mid)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
+          )}
           <button
-            onClick={onOpenSettings}
-            className="w-8 h-8 flex items-center justify-center rounded-full transition-opacity hover:opacity-70"
-            title="Settings"
+            onClick={toggleTheme}
+            style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="3" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            {theme === 'dark' ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-mid)" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-mid)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
           </button>
-        )}
-        <ThemeToggle />
+        </div>
       </div>
-    </div>
-    <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} />
+
+      <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} />
     </>
   )
 }
