@@ -53,6 +53,7 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const [confirmDecline, setConfirmDecline] = useState(false)
   const [developing, setDeveloping] = useState(false)
   const [developError, setDevelopError] = useState<string | null>(null)
+  const [peeking, setPeeking] = useState(false)
   const [justDeveloped, setJustDeveloped] = useState(false)
   const [dateLabel, setDateLabel] = useState('')
   const prevRealSrc = useRef(liveItem.real_image_url)
@@ -70,8 +71,9 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
     prevRealSrc.current = liveItem.real_image_url
   }, [liveItem.real_image_url])
 
-  // Always show real photo when it exists, otherwise planned
-  const photoSrc = liveItem.real_image_url ?? liveItem.image_url
+  // Peek: hold to see the original planned photo, release to go back to memory
+  const canPeek = !!(liveItem.real_image_url && liveItem.image_url)
+  const photoSrc = (canPeek && peeking) ? liveItem.image_url : (liveItem.real_image_url ?? liveItem.image_url)
 
   const handleDevelop = async (file: File) => {
     setDeveloping(true)
@@ -154,7 +156,13 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
           }}
         >
           {/* ── Photo area ────────────────────────────────────────────── */}
-          <div style={{ position: 'relative', background: '#1a1814', flexShrink: 0, overflow: 'hidden' }}>
+          <div
+            style={{ position: 'relative', background: '#1a1814', flexShrink: 0, overflow: 'hidden', userSelect: 'none' }}
+            onPointerDown={() => canPeek && setPeeking(true)}
+            onPointerUp={() => setPeeking(false)}
+            onPointerLeave={() => setPeeking(false)}
+            onPointerCancel={() => setPeeking(false)}
+          >
             {photoSrc ? (
               <AnimatePresence mode="wait">
                 <motion.div
@@ -222,6 +230,28 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
               >
                 {dateLabel}
               </motion.div>
+            )}
+
+            {/* Hold-to-peek hint */}
+            {canPeek && !peeking && (
+              <div style={{
+                position: 'absolute', bottom: 10, right: 12,
+                fontFamily: 'var(--font-mono)', fontSize: 9,
+                color: 'rgba(255,255,255,0.5)', letterSpacing: '0.07em',
+                pointerEvents: 'none',
+              }}>
+                hold to see original
+              </div>
+            )}
+            {peeking && (
+              <div style={{
+                position: 'absolute', bottom: 10, right: 12,
+                fontFamily: 'var(--font-mono)', fontSize: 9,
+                color: 'rgba(255,255,255,0.7)', letterSpacing: '0.07em',
+                pointerEvents: 'none',
+              }}>
+                the plan ↑
+              </div>
             )}
 
             {/* Done stamp */}
