@@ -6,16 +6,16 @@ import { BucketItem, Region, ItemTheme, ITEM_THEMES } from '../types'
 const TOPBAR_H     = 64
 const BOTTOMNAV_H  = 72
 const RAIL_H       = 44
-const PHOTO_H      = 140
-const CAPTION_H    = 44
+const PHOTO_H      = 130
+const CAPTION_H    = 40
 const CARD_W       = 160
 const STUB_W       = 28
 const NODE_D       = 10
-const PHOTO_CENTER = PHOTO_H / 2        // 70
-const ITEM_SLOT_H  = 220
-const ZONE_PAD_TOP = 40
+const PHOTO_CENTER = PHOTO_H / 2        // 65
+const ITEM_SLOT_H  = 200
+const ZONE_PAD_TOP = 60
 const ZONE_PILL_H  = 40
-const ZONE_AFTER_H = 80
+const ZONE_AFTER_H = 40
 const REGION_GAP   = 60
 
 function cardRotation(seed: number) {
@@ -48,7 +48,7 @@ function buildLayout(regions: Region[], items: BucketItem[]) {
     y += REGION_GAP
   }
 
-  return { zones, positions, totalHeight: Math.max(y + 120, 800) }
+  return { zones, positions, totalHeight: Math.max(y + 80, 400) }
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ interface TimelineCanvasProps {
 function ThemeBorderSVG({ theme }: { theme: ItemTheme | null | undefined }) {
   if (!theme || !(theme in ITEM_THEMES)) return null
   const c = ITEM_THEMES[theme].borderColor
-  const W = CARD_W       // 160
-  const H = PHOTO_H + CAPTION_H  // 184
+  const W = CARD_W
+  const H = PHOTO_H + CAPTION_H  // 170
 
   const border = (
     <rect x="1" y="1" width={W - 2} height={H - 2} rx="2"
@@ -116,7 +116,7 @@ function ThemeBorderSVG({ theme }: { theme: ItemTheme | null | undefined }) {
       <path d={`M${W-9},7 C${W-9},5 ${W-7},4 ${W-7},6 C${W-7},4 ${W-5},5 ${W-5},7 C${W-5},9 ${W-7},11 ${W-7},11 C${W-7},11 ${W-9},9 ${W-9},7Z`} fill={c} opacity="0.5"/>
       <path d={`M${W-15},12 C${W-15},10.5 ${W-13.5},9.5 ${W-13.5},11.5 C${W-13.5},9.5 ${W-12},10.5 ${W-12},12 C${W-12},13.5 ${W-13.5},15 ${W-13.5},15 C${W-13.5},15 ${W-15},13.5 ${W-15},12Z`} fill={c} opacity="0.4"/>
       {/* Heart — bottom-left */}
-      <path d="M7,168 C7,166 9,165 9,167 C9,165 11,166 11,168 C11,170 9,172 9,172 C9,172 7,170 7,168Z" fill={c} opacity="0.45"/>
+      <path d={`M7,${H-16} C7,${H-18} 9,${H-19} 9,${H-17} C9,${H-19} 11,${H-18} 11,${H-16} C11,${H-14} 9,${H-12} 9,${H-12} C9,${H-12} 7,${H-14} 7,${H-16}Z`} fill={c} opacity="0.45"/>
       {/* Dot trail */}
       <circle cx={W / 2 - 6} cy="3" r="1.5" fill={c} opacity="0.35"/>
       <circle cx={W / 2} cy="3" r="2" fill={c} opacity="0.4"/>
@@ -137,7 +137,7 @@ function ThemeBorderSVG({ theme }: { theme: ItemTheme | null | undefined }) {
       <circle cx={W - 32} cy="8" r="0.8" fill={c} opacity="0.28"/>
       <circle cx="8" cy="32" r="0.9" fill={c} opacity="0.28"/>
       {/* Cloud — bottom-left */}
-      <path d="M2,176 Q7,168 16,172 Q16,164 26,167 Q28,164 32,168 Q40,167 40,175 Q40,183 2,183 Q0,183 2,176Z" fill={c} opacity="0.15"/>
+      <path d={`M2,${H-8} Q7,${H-16} 16,${H-12} Q16,${H-20} 26,${H-17} Q28,${H-20} 32,${H-16} Q40,${H-17} 40,${H-9} Q40,${H-1} 2,${H-1} Q0,${H-1} 2,${H-8}Z`} fill={c} opacity="0.15"/>
     </>
   } else if (theme === 'experience') {
     deco = <>
@@ -198,6 +198,27 @@ function HeartVote({ rating, color }: { rating: number; color: string }) {
         </span>
       )}
     </div>
+  )
+}
+
+// ─── Film sprocket holes ──────────────────────────────────────────────────────
+function SprocketHoles({ side }: { side: 'left' | 'right' }) {
+  return (
+    <>
+      {[0.25, 0.5, 0.75].map(frac => (
+        <div
+          key={frac}
+          style={{
+            position: 'absolute',
+            [side]: 3,
+            top: `calc(${frac * 100}% - 2px)`,
+            width: 4, height: 4,
+            borderRadius: 1,
+            background: 'rgba(255,255,255,0.10)',
+          }}
+        />
+      ))}
+    </>
   )
 }
 
@@ -285,6 +306,9 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
     canvasRef.current.scrollTo({ top: Math.max(0, zone.y - 20), behavior: 'smooth' })
   }, [zoneMap])
 
+  // suppress unused warning — kept for potential future nav use
+  void scrollToRegion
+
   return (
     <div style={{
       position: 'fixed',
@@ -371,7 +395,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
             boxShadow: '0 0 6px rgba(196,184,154,0.4)',
           }} />
 
-          {/* ── Zone markers (from real regions) ─────────────────────────── */}
+          {/* ── Zone markers ─────────────────────────────────────────────── */}
           {zones.map(zone => {
             const region = regions.find(r => r.id === zone.regionId)
             if (!region) return null
@@ -413,7 +437,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
             )
           })}
 
-          {/* ── Items (from real items state) ─────────────────────────────── */}
+          {/* ── Items ────────────────────────────────────────────────────── */}
           {items.map(item => {
             const pos = posMap.get(item.id)
             if (!pos) return null
@@ -427,13 +451,15 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
             const rotation   = cardRotation(item.rotation_seed)
             const creator    = getUserById(item.created_by)
 
-            // Both users' ratings for caption hearts
             const itemReactions = reactions[item.id] ?? []
             const myReaction      = itemReactions.find(r => r.user_id === user?.id)
             const partnerReaction = itemReactions.find(r => r.user_id !== user?.id)
             const myRating      = myReaction?.rating ?? 0
             const partnerRating = partnerReaction?.rating ?? 0
             const partnerUser   = partnerReaction ? getUserById(partnerReaction.user_id) : null
+            const displayRating = myRating || partnerRating
+
+            const hasDate = !!(item.date && item.date.trim())
 
             return (
               <div
@@ -454,7 +480,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                   width: NODE_D, height: NODE_D,
                   borderRadius: '50%',
                   background: isProposed ? 'transparent' : 'var(--node-committed)',
-                  border: isProposed ? '1.5px solid var(--node-proposed)' : 'none',
+                  border: isProposed ? '1.5px solid #b0a898' : 'none',
                   zIndex: 6,
                 }} />
 
@@ -467,10 +493,12 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     : { left: '50%', width: STUB_W }
                   ),
                   height: 1,
-                  backgroundImage: 'repeating-linear-gradient(to right, var(--spine-color) 0, var(--spine-color) 3px, transparent 3px, transparent 7px)',
+                  backgroundImage: isProposed
+                    ? 'repeating-linear-gradient(to right, rgba(196,184,154,0.5) 0, rgba(196,184,154,0.5) 3px, transparent 3px, transparent 7px)'
+                    : 'repeating-linear-gradient(to right, var(--spine-color) 0, var(--spine-color) 3px, transparent 3px, transparent 7px)',
                 }} />
 
-                {/* Polaroid card */}
+                {/* ── Polaroid card ─────────────────────────────────────── */}
                 <div
                   onClick={() => onItemClick(item)}
                   style={{
@@ -483,9 +511,9 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     width: CARD_W,
                     transform: `rotate(${rotation}deg)`,
                     transformOrigin: 'center top',
-                    opacity: isProposed ? 0.75 : 1,
+                    opacity: isProposed ? 0.65 : 1,
                     background: 'var(--card-bg)',
-                    boxShadow: '0 6px 20px rgba(60,40,10,0.22), 0 2px 6px rgba(60,40,10,0.12)',
+                    boxShadow: '0 4px 16px rgba(50,35,10,0.16), 0 1px 4px rgba(50,35,10,0.10)',
                     borderRadius: 3,
                     overflow: 'hidden',
                     cursor: 'pointer',
@@ -495,49 +523,91 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                   {/* Photo area */}
                   <div style={{
                     width: '100%', height: PHOTO_H,
-                    background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
+                    background: hasPhoto
+                      ? 'transparent'
+                      : 'linear-gradient(160deg, #0e0c08, #1e1608, #0e0c08)',
                     position: 'relative', overflow: 'hidden',
                   }}>
-                    {hasPhoto ? (
+                    {hasPhoto && (
                       <img
                         src={photoSrc!}
                         alt={item.title}
                         loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                       />
-                    ) : (
-                      <div style={{
-                        position: 'absolute', inset: 0,
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', gap: 5,
-                      }}>
-                        <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 16, color: '#fff' }}>
-                          &amp;you
-                        </span>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)', fontSize: 9,
-                          letterSpacing: '0.2em', color: 'rgba(255,255,255,0.6)',
-                          textTransform: 'uppercase',
-                        }}>
-                          UNDEVELOPED
-                        </span>
-                      </div>
                     )}
 
-                    {/* Creator avatar */}
+                    {!hasPhoto && (
+                      <>
+                        {/* Film negative placeholder */}
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center', gap: 4,
+                        }}>
+                          <span style={{
+                            fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                            fontSize: 14, color: 'rgba(255,220,160,0.45)',
+                          }}>&amp;you</span>
+                          <span style={{
+                            fontFamily: "'Courier New', monospace",
+                            fontSize: 8, letterSpacing: '0.14em',
+                            color: 'rgba(255,255,255,0.18)',
+                            textTransform: 'uppercase',
+                          }}>UNEXPOSED</span>
+                        </div>
+                        {/* Film sprocket holes */}
+                        <SprocketHoles side="left" />
+                        <SprocketHoles side="right" />
+                      </>
+                    )}
+
+                    {/* Creator avatar — bottom-left */}
                     {creator && (
                       <div style={{
-                        position: 'absolute', bottom: 8, left: 8,
-                        width: 22, height: 22, borderRadius: '50%',
+                        position: 'absolute', bottom: 6, left: 6,
+                        width: 20, height: 20, borderRadius: '50%',
                         background: creator.avatar_color,
-                        border: '2px solid rgba(255,255,255,0.85)',
+                        border: '1.5px solid rgba(255,255,255,0.85)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: 'var(--font-sans)', fontSize: 9, fontWeight: 600, color: '#fff',
+                        fontFamily: 'var(--font-sans)', fontSize: 8, fontWeight: 600, color: '#fff',
+                        zIndex: 3,
                       }}>
                         {creator.name.charAt(0).toUpperCase()}
                       </div>
                     )}
 
+                    {/* Partner heart reaction — top-right (only if not done, to avoid overlap with stamp) */}
+                    {partnerRating > 0 && !isDone && (
+                      <div style={{
+                        position: 'absolute', top: 5, right: 5,
+                        width: 18, height: 18, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.85)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 4, pointerEvents: 'none',
+                      }}>
+                        <svg width="10" height="10" viewBox="0 0 24 22">
+                          <path
+                            d="M12 21l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21z"
+                            fill="#e05070"
+                          />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Rating badge — bottom-right */}
+                    {displayRating > 0 && (
+                      <div style={{
+                        position: 'absolute', bottom: 6, right: 6,
+                        background: 'var(--amber)', color: '#fff',
+                        fontFamily: "'Courier New', monospace", fontSize: 9,
+                        padding: '1px 5px', borderRadius: 3,
+                        zIndex: 3, pointerEvents: 'none',
+                        lineHeight: 1.4,
+                      }}>
+                        {displayRating}
+                      </div>
+                    )}
 
                     {/* Done stamp */}
                     {isDone && (
@@ -550,8 +620,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                         alignItems: 'center', justifyContent: 'center',
                         background: 'rgba(255,255,255,0.88)',
                         transform: 'rotate(-14deg)',
-                        zIndex: 5,
-                        pointerEvents: 'none',
+                        zIndex: 5, pointerEvents: 'none',
                       }}>
                         <span style={{ fontSize: 5, letterSpacing: '0.15em', color: '#4a8a4a', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>DONE</span>
                         <span style={{ fontSize: 13, color: '#4a8a4a', lineHeight: 1.1 }}>✓</span>
@@ -559,68 +628,82 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     )}
                   </div>
 
-                  {/* Caption strip — title + both heart votes */}
+                  {/* Caption strip */}
                   <div style={{
                     width: '100%', height: CAPTION_H,
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '0 8px', gap: 4,
                     background: 'var(--card-bg)',
                   }}>
-                    <HeartVote rating={myRating} color={user?.avatar_color ?? '#e0a04a'} />
-                    <span style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 8,
-                      textTransform: 'uppercase', letterSpacing: '0.1em',
-                      color: 'var(--text-muted)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      flex: 1, textAlign: 'center',
-                    }}>
-                      {item.title}
-                    </span>
-                    <HeartVote rating={partnerRating} color={partnerUser?.avatar_color ?? '#8a9abf'} />
+                    {isProposed ? (
+                      <span style={{
+                        flex: 1, textAlign: 'center',
+                        fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                        fontSize: 10, color: '#b0a070', letterSpacing: '0.02em',
+                      }}>
+                        proposed
+                      </span>
+                    ) : (
+                      <>
+                        <HeartVote rating={myRating} color={user?.avatar_color ?? '#e0a04a'} />
+                        <span style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 8,
+                          textTransform: 'uppercase', letterSpacing: '0.1em',
+                          color: 'var(--text-muted)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          flex: 1, textAlign: 'center',
+                        }}>
+                          {item.title}
+                        </span>
+                        <HeartVote rating={partnerRating} color={partnerUser?.avatar_color ?? '#8a9abf'} />
+                      </>
+                    )}
                   </div>
 
                   {/* Themed border overlay */}
                   {item.theme && <ThemeBorderSVG theme={item.theme as ItemTheme} />}
                 </div>
 
-                {/* Text block — opposite side */}
+                {/* ── Text block — opposite side ────────────────────────── */}
                 <div style={{
                   position: 'absolute',
                   top: 10,
                   ...(isLeft
-                    ? { left: 'calc(50% + 16px)', right: 14, textAlign: 'left' as const }
-                    : { left: 14, right: 'calc(50% + 16px)', textAlign: 'right' as const }
+                    ? { left: 'calc(50% + 16px)', textAlign: 'left' as const }
+                    : { right: 'calc(50% + 16px)', textAlign: 'right' as const }
                   ),
+                  maxWidth: 80,
                   pointerEvents: 'none',
-                  background: 'rgba(245,240,230,0.82)',
-                  borderRadius: 8,
-                  padding: '6px 8px',
-                  boxShadow: '0 2px 12px rgba(60,40,10,0.10)',
-                  backdropFilter: 'blur(2px)',
                 }}>
-                  {/* Date or placeholder */}
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10, fontWeight: 300,
-                    color: item.date ? 'var(--text-muted)' : 'var(--spine-color)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    marginBottom: 5, lineHeight: 1,
-                    fontStyle: item.date ? 'normal' : 'italic',
-                  }}>
-                    {item.date ?? 'to be planned'}
-                  </div>
+                  {hasDate && (
+                    <div style={{
+                      fontFamily: "'Courier New', monospace",
+                      fontSize: 9, fontWeight: 300,
+                      color: 'var(--text-muted)',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      marginBottom: 4, lineHeight: 1,
+                    }}>
+                      {item.date}
+                    </div>
+                  )}
                   <div style={{
                     fontFamily: 'var(--font-sans)',
-                    fontSize: 16, fontWeight: 600,
+                    fontSize: 14, fontWeight: 600,
                     color: 'var(--text-dark)',
                     lineHeight: 1.2, marginBottom: 3,
-                    textShadow: '0 1px 4px rgba(245,240,230,0.6)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {item.title}
                   </div>
-                  {/* Location: show 'online' if mood is online, else show location if set */}
-                  {item.mood === 'online' ? (
+                  {isProposed ? (
+                    <div style={{
+                      fontFamily: 'var(--font-sans)', fontSize: 11,
+                      color: '#b0a070', fontStyle: 'italic',
+                    }}>
+                      by {creator?.name ?? ''}
+                    </div>
+                  ) : item.mood === 'online' ? (
                     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: '#3a7a78', fontWeight: 500 }}>
                       online
                     </div>
@@ -629,11 +712,6 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                       {item.location}
                     </div>
                   ) : null}
-                  {isProposed && (
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
-                      proposed
-                    </div>
-                  )}
                 </div>
 
               </div>
