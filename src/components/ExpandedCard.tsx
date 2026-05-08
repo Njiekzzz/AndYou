@@ -56,6 +56,10 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
           background: 'rgba(20,16,8,0.75)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
         }}
       >
         {/* Card — stop propagation so tapping card doesn't close */}
@@ -67,16 +71,15 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
           transition={{ type: 'spring', stiffness: 320, damping: 30 }}
           onClick={e => e.stopPropagation()}
           style={{
-            position: 'absolute',
-            top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 'min(360px, calc(100vw - 40px))',
+            width: '100%',
+            maxWidth: 360,
             background: 'var(--card-bg)',
             borderRadius: 4,
             boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
             overflow: 'hidden',
             maxHeight: 'calc(100vh - 80px)',
             overflowY: 'auto',
+            flexShrink: 0,
           }}
         >
           {/* ── Photo area ───────────────────────────────────────────────── */}
