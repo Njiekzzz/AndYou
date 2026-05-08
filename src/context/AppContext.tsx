@@ -16,6 +16,28 @@ import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, Drawi
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
+function compressImage(file: File, maxPx = 1800, quality = 0.82): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width, height } = img
+      if (width > maxPx || height > maxPx) {
+        if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx }
+        else { width = Math.round(width * maxPx / height); height = maxPx }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Compression failed')), 'image/jpeg', quality)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')) }
+    img.src = url
+  })
+}
+
 const DEFAULT_REGIONS: Omit<Region, 'id' | 'wall_id'>[] = [
   { name: 'now', order: 0, unlock_date: null },
   { name: '2–4 weeks', order: 1, unlock_date: null },
@@ -542,8 +564,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
     if (!cloudName || cloudName === 'undefined') throw new Error('Missing VITE_CLOUDINARY_CLOUD_NAME')
     if (!uploadPreset || uploadPreset === 'undefined') throw new Error('Missing VITE_CLOUDINARY_UPLOAD_PRESET')
+    const compressed = await compressImage(file)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', compressed, 'photo.jpg')
     formData.append('upload_preset', uploadPreset)
     const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
