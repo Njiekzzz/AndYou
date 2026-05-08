@@ -11,6 +11,8 @@ interface SettingsSheetProps {
 export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
   const { wall, regions, updateRegion, addRegion, polaroidStyle, setPolaroidStyle, updateWallName } = useApp()
   const [wallNameInput, setWallNameInput] = useState(wall?.name ?? '')
+  const [wallNameSaving, setWallNameSaving] = useState(false)
+  const [wallNameSaved, setWallNameSaved] = useState(false)
   const [newRegionName, setNewRegionName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -40,6 +42,19 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
   const sortedRegions = [...regions].sort((a, b) => a.order - b.order)
 
   useEffect(() => { setWallNameInput(wall?.name ?? '') }, [wall?.name])
+
+  const handleSaveWallName = useCallback(async () => {
+    if (!wallNameInput.trim() || wallNameSaving) return
+    setWallNameSaving(true)
+    try {
+      await updateWallName(wallNameInput.trim())
+      setWallNameSaved(true)
+      setTimeout(() => setWallNameSaved(false), 2000)
+    } catch (err) {
+      console.error('Failed to save wall name:', err)
+    }
+    setWallNameSaving(false)
+  }, [wallNameInput, wallNameSaving, updateWallName])
 
   const touchStartY = useRef(0)
   const onHandleTouchStart = useCallback((e: React.TouchEvent) => { touchStartY.current = e.touches[0].clientY }, [])
@@ -104,22 +119,24 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
                       value={wallNameInput}
                       onChange={e => setWallNameInput(e.target.value)}
                       placeholder="give this wall a name…"
-                      onKeyDown={e => e.key === 'Enter' && wallNameInput.trim() && updateWallName(wallNameInput.trim())}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveWallName()}
                       style={{ flex: 1 }}
                     />
                     <button
-                      onClick={() => wallNameInput.trim() && updateWallName(wallNameInput.trim())}
-                      disabled={!wallNameInput.trim()}
+                      onClick={handleSaveWallName}
+                      disabled={!wallNameInput.trim() || wallNameSaving}
                       style={{
                         padding: '8px 14px',
-                        background: 'var(--text-primary)',
+                        background: wallNameSaved ? '#6b9e7b' : 'var(--text-primary)',
                         color: 'var(--bg)',
                         borderRadius: 6,
                         fontSize: 13,
                         opacity: !wallNameInput.trim() ? 0.4 : 1,
+                        transition: 'background 0.2s',
+                        minWidth: 60,
                       }}
                     >
-                      save
+                      {wallNameSaving ? '…' : wallNameSaved ? '✓' : 'save'}
                     </button>
                   </div>
                 </div>

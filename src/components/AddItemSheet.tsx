@@ -260,14 +260,18 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
                 />
               </div>
 
-              {/* Location */}
-              <div className="mb-3">
-                <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>location</label>
+              {/* Location — disabled when online */}
+              <div className="mb-3" style={{ opacity: mood === 'online' ? 0.4 : 1 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                  location {mood === 'online' && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— not needed for online</span>}
+                </label>
                 <input
                   type="text"
-                  value={location}
+                  value={mood === 'online' ? '' : location}
                   onChange={e => setLocation(e.target.value)}
                   placeholder="e.g. Iceland"
+                  disabled={mood === 'online'}
+                  style={{ pointerEvents: mood === 'online' ? 'none' : 'auto' }}
                 />
               </div>
 

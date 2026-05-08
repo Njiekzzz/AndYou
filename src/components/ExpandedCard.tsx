@@ -99,21 +99,26 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
             flexShrink: 0,
           }}
         >
-          {/* Photo */}
-          <div style={{
-            width: '100%', height: 240,
-            background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
-            position: 'relative', overflow: 'hidden', flexShrink: 0,
-          }}>
+          {/* Photo — full image, no crop */}
+          <div style={{ position: 'relative', background: '#1a1814', flexShrink: 0 }}>
             {liveItem.image_url ? (
-              <img
-                src={liveItem.image_url}
-                alt={liveItem.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 160 }}>
+                <img
+                  src={liveItem.image_url}
+                  alt={liveItem.title}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '65vh',
+                    width: 'auto',
+                    height: 'auto',
+                    display: 'block',
+                  }}
+                />
+              </div>
             ) : (
               <div style={{
-                position: 'absolute', inset: 0,
+                height: 200,
+                background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
@@ -126,7 +131,7 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
               style={{
                 position: 'absolute', top: 10, right: 10,
                 width: 32, height: 32, borderRadius: '50%',
-                background: 'rgba(0,0,0,0.4)',
+                background: 'rgba(0,0,0,0.5)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 zIndex: 10, border: 'none', cursor: 'pointer',
               }}

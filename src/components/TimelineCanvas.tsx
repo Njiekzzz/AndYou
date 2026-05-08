@@ -204,11 +204,12 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
             position: 'absolute',
             top: 0, bottom: 0,
             left: '50%',
-            width: 0,
-            borderLeft: '1.5px dashed var(--spine-color)',
+            width: '2px',
+            background: 'var(--spine-color)',
             transform: 'translateX(-50%)',
             zIndex: 1,
             pointerEvents: 'none',
+            boxShadow: '0 0 6px rgba(196,184,154,0.4)',
           }} />
 
           {/* ── Zone markers (from real regions) ─────────────────────────── */}
@@ -320,7 +321,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     transformOrigin: 'center top',
                     opacity: isProposed ? 0.75 : 1,
                     background: 'var(--card-bg)',
-                    boxShadow: 'var(--card-shadow)',
+                    boxShadow: '0 6px 20px rgba(60,40,10,0.22), 0 2px 6px rgba(60,40,10,0.12)',
                     borderRadius: 3,
                     overflow: 'hidden',
                     cursor: 'pointer',
@@ -418,41 +419,45 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     : { left: 14, right: 'calc(50% + 16px)', textAlign: 'right' as const }
                   ),
                   pointerEvents: 'none',
+                  background: 'rgba(245,240,230,0.82)',
+                  borderRadius: 8,
+                  padding: '6px 8px',
+                  boxShadow: '0 2px 12px rgba(60,40,10,0.10)',
+                  backdropFilter: 'blur(2px)',
                 }}>
-                  {/* Date — only show if explicitly set */}
-                  {item.date && (
-                    <div style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 11, fontWeight: 300,
-                      color: 'var(--text-muted)',
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      marginBottom: 6, lineHeight: 1,
-                    }}>
-                      {item.date}
-                    </div>
-                  )}
+                  {/* Date or placeholder */}
+                  <div style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10, fontWeight: 300,
+                    color: item.date ? 'var(--text-muted)' : 'var(--spine-color)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    marginBottom: 5, lineHeight: 1,
+                    fontStyle: item.date ? 'normal' : 'italic',
+                  }}>
+                    {item.date ?? 'to be planned'}
+                  </div>
                   <div style={{
                     fontFamily: 'var(--font-sans)',
-                    fontSize: 17, fontWeight: 600,
+                    fontSize: 16, fontWeight: 600,
                     color: 'var(--text-dark)',
-                    lineHeight: 1.2, marginBottom: 4,
+                    lineHeight: 1.2, marginBottom: 3,
+                    textShadow: '0 1px 4px rgba(245,240,230,0.6)',
                   }}>
                     {item.title}
                   </div>
-                  {item.location && (
-                    <div style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 12, color: 'var(--text-muted)', fontWeight: 400,
-                    }}>
+                  {/* Location: show 'online' if mood is online, else show location if set */}
+                  {item.mood === 'online' ? (
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: '#3a7a78', fontWeight: 500 }}>
+                      online
+                    </div>
+                  ) : item.location ? (
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
                       {item.location}
                     </div>
-                  )}
+                  ) : null}
                   {isProposed && (
-                    <div style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic',
-                    }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
                       proposed
                     </div>
                   )}
