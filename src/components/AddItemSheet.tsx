@@ -170,6 +170,8 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
               maxHeight: '92vh',
               display: 'flex',
               flexDirection: 'column',
+              touchAction: 'pan-y',
+              overflowX: 'hidden',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -183,7 +185,7 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
             </div>
 
             {/* Scrollable content */}
-            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div style={{ overflowY: 'auto', overflowX: 'hidden', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
             <div style={{ padding: '0 20px 24px' }}>
               <div className="flex items-center justify-between mb-5">
                 <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>
