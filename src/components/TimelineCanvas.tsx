@@ -137,7 +137,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
       display: 'flex', flexDirection: 'column',
     }}>
 
-      {/* ── Region jump rail ─────────────────────────────────────────────── */}
+      {/* ── Region indicator rail ────────────────────────────────────────── */}
       <div style={{
         height: RAIL_H, flexShrink: 0,
         background: 'var(--topbar-bg)',
@@ -147,31 +147,31 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
         display: 'flex', alignItems: 'center',
         padding: '0 20px', gap: 0,
         overflowX: 'auto', scrollbarWidth: 'none',
+        pointerEvents: 'none',
       }}>
         {regions.map((region, i) => {
           const isActive = activeRegionId === region.id
           return (
-            <button
+            <div
               key={region.id}
-              onClick={() => scrollToRegion(region.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
-                paddingRight: 16,
-                background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
+                paddingRight: 16, flexShrink: 0,
               }}
             >
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--amber)', lineHeight: 1 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: isActive ? 'var(--amber)' : 'var(--text-muted)', lineHeight: 1, transition: 'color 0.2s' }}>
                 {i === 0 ? '→' : '›'}
               </span>
               <span style={{
                 fontFamily: 'var(--font-sans)', fontSize: 13,
-                fontWeight: isActive ? 500 : 400,
-                color: isActive ? 'var(--amber)' : 'var(--text-mid)',
-                transition: 'color 0.15s',
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? 'var(--amber)' : 'var(--text-muted)',
+                opacity: isActive ? 1 : 0.45,
+                transition: 'color 0.2s, opacity 0.2s, font-weight 0.2s',
               }}>
                 {region.name}
               </span>
-            </button>
+            </div>
           )
         })}
       </div>
@@ -262,7 +262,9 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
             const { y: yOffset, side } = pos
             const isLeft     = side === 'left'
             const isProposed = item.status === 'proposed'
-            const hasPhoto   = !!(item.image_url)
+            const isDone     = item.status === 'done'
+            const photoSrc   = isDone && item.real_image_url ? item.real_image_url : item.image_url
+            const hasPhoto   = !!(photoSrc)
             const rotation   = cardRotation(item.rotation_seed)
             const creator    = getUserById(item.created_by)
 
@@ -336,7 +338,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                   }}>
                     {hasPhoto ? (
                       <img
-                        src={item.image_url!}
+                        src={photoSrc!}
                         alt={item.title}
                         loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -383,6 +385,25 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                         padding: '2px 6px', borderRadius: 4,
                       }}>
                         {myRating}
+                      </div>
+                    )}
+
+                    {/* Done stamp */}
+                    {isDone && (
+                      <div style={{
+                        position: 'absolute', top: 6, right: 6,
+                        width: 38, height: 38, borderRadius: '50%',
+                        border: '2px solid rgba(74,138,74,0.85)',
+                        boxShadow: 'inset 0 0 0 1px rgba(74,138,74,0.3)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(255,255,255,0.88)',
+                        transform: 'rotate(-14deg)',
+                        zIndex: 5,
+                        pointerEvents: 'none',
+                      }}>
+                        <span style={{ fontSize: 5, letterSpacing: '0.15em', color: '#4a8a4a', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>DONE</span>
+                        <span style={{ fontSize: 13, color: '#4a8a4a', lineHeight: 1.1 }}>✓</span>
                       </div>
                     )}
                   </div>

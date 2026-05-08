@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BucketItem } from '../types'
 import { useApp } from '../context/AppContext'
@@ -33,7 +33,7 @@ function HeartRating({ rating, color, label }: { rating: number | null; color: s
 }
 
 export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
-  const { user, partner, getUserById, getItemReactions, deleteItem, setRating, regions, items } = useApp()
+  const { user, partner, getUserById, getItemReactions, deleteItem, setRating, regions, items, completeItem, uploadImage, updateItem } = useApp()
 
   const liveItem = items.find(i => i.id === item.id) ?? item
 
@@ -50,6 +50,24 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const partnerColor = partnerUser?.avatar_color ?? '#8a9abf'
 
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showingReal, setShowingReal] = useState(!!liveItem.real_image_url)
+  const [developing, setDeveloping] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleDevelop = async (file: File) => {
+    setDeveloping(true)
+    try {
+      const url = await uploadImage(file)
+      if (liveItem.status !== 'done') {
+        await completeItem(liveItem.id, url)
+      } else {
+        await updateItem(liveItem.id, { real_image_url: url })
+      }
+      setShowingReal(true)
+    } finally {
+      setDeveloping(false)
+    }
+  }
 
   const handleDelete = async () => {
     await deleteItem(liveItem.id)
@@ -99,33 +117,70 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
             flexShrink: 0,
           }}
         >
-          {/* Photo — full image, no crop */}
+          {/* Photo — shows real memory photo when developed, planned image otherwise */}
           <div style={{ position: 'relative', background: '#1a1814', flexShrink: 0 }}>
-            {liveItem.image_url ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 160 }}>
-                <img
-                  src={liveItem.image_url}
-                  alt={liveItem.title}
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '65vh',
-                    width: 'auto',
-                    height: 'auto',
-                    display: 'block',
-                  }}
-                />
-              </div>
-            ) : (
+            {(() => {
+              const displaySrc = showingReal && liveItem.real_image_url
+                ? liveItem.real_image_url
+                : liveItem.image_url
+              if (displaySrc) {
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 160 }}>
+                    <img
+                      src={displaySrc}
+                      alt={liveItem.title}
+                      style={{ maxWidth: '100%', maxHeight: '65vh', width: 'auto', height: 'auto', display: 'block' }}
+                    />
+                  </div>
+                )
+              }
+              return (
+                <div style={{
+                  height: 200,
+                  background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}>
+                  <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: '#fff' }}>&amp;you</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>UNDEVELOPED</span>
+                </div>
+              )
+            })()}
+
+            {/* Done stamp */}
+            {liveItem.status === 'done' && (
               <div style={{
-                height: 200,
-                background: 'linear-gradient(135deg, #c8a060, #8a5a30)',
+                position: 'absolute', top: 12, left: 12,
+                width: 52, height: 52, borderRadius: '50%',
+                border: '2.5px solid rgba(74,138,74,0.9)',
+                boxShadow: 'inset 0 0 0 1.5px rgba(74,138,74,0.3)',
                 display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 8,
+                alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(255,255,255,0.9)',
+                transform: 'rotate(-12deg)',
+                pointerEvents: 'none',
               }}>
-                <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 22, color: '#fff' }}>&amp;you</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>UNDEVELOPED</span>
+                <span style={{ fontSize: 6, letterSpacing: '0.18em', color: '#4a8a4a', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>DONE</span>
+                <span style={{ fontSize: 16, color: '#4a8a4a', lineHeight: 1.2 }}>✓</span>
               </div>
             )}
+
+            {/* Flip toggle — only when both images exist */}
+            {liveItem.real_image_url && liveItem.image_url && (
+              <button
+                onClick={() => setShowingReal(r => !r)}
+                style={{
+                  position: 'absolute', bottom: 10, left: 10,
+                  background: 'rgba(0,0,0,0.5)', border: 'none', cursor: 'pointer',
+                  borderRadius: 20, padding: '4px 10px',
+                  fontFamily: 'var(--font-mono)', fontSize: 9,
+                  color: 'rgba(255,255,255,0.85)', letterSpacing: '0.07em',
+                }}
+              >
+                {showingReal ? '← the plan' : 'the memory →'}
+              </button>
+            )}
+
             <button
               onClick={onClose}
               style={{
@@ -265,6 +320,67 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
             </div>
 
             <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
+
+            {/* ── Develop memory section ─────────────────────────────── */}
+            {!(liveItem.status === 'done' && liveItem.real_image_url) && (
+              <>
+                <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <svg width="16" height="14" viewBox="0 0 16 14" fill="none">
+                      <rect x="0.75" y="2.75" width="14.5" height="10.5" rx="1.5" stroke="var(--amber)" strokeWidth="1.2"/>
+                      <circle cx="8" cy="8" r="2.5" stroke="var(--amber)" strokeWidth="1.2"/>
+                      <path d="M5 2.5L6 1h4l1 1.5" stroke="var(--amber)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--amber)' }}>
+                      {liveItem.status === 'done' ? 'add your memory photo' : 'develop this memory'}
+                    </span>
+                  </div>
+                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+                    {liveItem.status === 'done'
+                      ? 'Upload a photo from when you did this — it\'ll develop onto the polaroid.'
+                      : 'Did you do this together? Upload a photo to develop the polaroid and mark it done.'}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleDevelop(file)
+                      e.target.value = ''
+                    }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={developing}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7,
+                      padding: '9px 16px', borderRadius: 999,
+                      background: developing ? 'var(--cream-dark)' : 'var(--amber)',
+                      border: 'none', cursor: developing ? 'default' : 'pointer',
+                      fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+                      color: developing ? 'var(--text-muted)' : '#2a2218',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {developing ? (
+                      <>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em' }}>developing…</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                          <path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                        </svg>
+                        choose photo
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
 
             {/* Edit */}
             <div style={{ padding: '12px 16px 4px' }}>
