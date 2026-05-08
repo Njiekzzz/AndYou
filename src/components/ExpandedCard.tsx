@@ -52,6 +52,7 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmDecline, setConfirmDecline] = useState(false)
   const [developing, setDeveloping] = useState(false)
+  const [developError, setDevelopError] = useState<string | null>(null)
   const [justDeveloped, setJustDeveloped] = useState(false)
   const [dateLabel, setDateLabel] = useState('')
   const prevRealSrc = useRef(liveItem.real_image_url)
@@ -74,6 +75,7 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
 
   const handleDevelop = async (file: File) => {
     setDeveloping(true)
+    setDevelopError(null)
     try {
       const url = await uploadImage(file)
       if (liveItem.status !== 'done') {
@@ -81,6 +83,10 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
       } else {
         await updateItem(liveItem.id, { real_image_url: url })
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Upload failed'
+      setDevelopError(msg)
+      console.error('Develop failed:', err)
     } finally {
       setDeveloping(false)
     }
@@ -484,6 +490,11 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
                     </>
                   )}
                 </button>
+                {developError && (
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#c94a3a', margin: '8px 0 0', lineHeight: 1.4 }}>
+                    error: {developError}
+                  </p>
+                )}
               </div>
             )}
 

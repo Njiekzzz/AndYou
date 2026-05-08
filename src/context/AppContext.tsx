@@ -540,6 +540,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+    if (!cloudName || cloudName === 'undefined') throw new Error('Missing VITE_CLOUDINARY_CLOUD_NAME')
+    if (!uploadPreset || uploadPreset === 'undefined') throw new Error('Missing VITE_CLOUDINARY_UPLOAD_PRESET')
     const formData = new FormData()
     formData.append('file', file)
     formData.append('upload_preset', uploadPreset)
@@ -547,7 +549,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       body: formData,
     })
-    if (!res.ok) throw new Error('Image upload failed')
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.statusText)
+      throw new Error(`Cloudinary ${res.status}: ${body}`)
+    }
     const data = await res.json()
     return data.secure_url as string
   }, [])
