@@ -324,8 +324,8 @@ export function TimelineCanvas({ onItemClick, spinTarget }: TimelineCanvasProps)
             const isCommitted = item.status === 'committed' || item.status === 'done'
             const nodeY = y + CARD_H / 2
 
-            const dateStr = item.date
-              ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+            const dateStr = item.created_at
+              ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
               : null
 
             return (
