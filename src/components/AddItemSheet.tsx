@@ -263,15 +263,37 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
             </div>
 
+            {/* Sticky header — always visible */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 20px 14px', flexShrink: 0,
+              borderBottom: '1px solid var(--border)',
+            }}>
+              <button
+                onClick={handleClose}
+                style={{ fontSize: 14, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', padding: '6px 0', minWidth: 56 }}
+              >
+                cancel
+              </button>
+              <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>
+                {isEditMode ? 'edit memory' : 'add to your wall'}
+              </span>
+              <button
+                onClick={handleSave}
+                disabled={!title.trim() || !regionId || saving}
+                style={{
+                  fontSize: 14, fontWeight: 600, color: (!title.trim() || !regionId || saving) ? 'var(--text-muted)' : 'var(--color-teal)',
+                  fontFamily: 'var(--font-sans)', padding: '6px 0', minWidth: 56, textAlign: 'right',
+                  transition: 'color 0.15s',
+                }}
+              >
+                {saving ? 'saving…' : isEditMode ? 'save' : status === 'proposed' ? 'propose' : 'add'}
+              </button>
+            </div>
+
             {/* Scrollable content */}
             <div style={{ overflowY: 'auto', overflowX: 'hidden', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-            <div style={{ padding: '0 20px 24px' }}>
-              <div className="flex items-center justify-between mb-5">
-                <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>
-                  {isEditMode ? 'edit memory' : 'add to your wall'}
-                </h2>
-                <button onClick={handleClose} style={{ color: 'var(--text-muted)', fontSize: 22, lineHeight: 1 }}>×</button>
-              </div>
+            <div style={{ padding: '16px 20px 24px' }}>
 
               {/* Image upload */}
               <div className="mb-4">
@@ -513,20 +535,6 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
                 </div>
               </div>
 
-              {/* Save */}
-              <button
-                onClick={handleSave}
-                disabled={!title.trim() || !regionId || saving}
-                style={{
-                  width: '100%', padding: '13px',
-                  background: '#e0a04a', color: '#2a2620',
-                  borderRadius: 999, fontSize: 15, fontWeight: 500,
-                  transition: 'opacity 0.15s',
-                  opacity: (!title.trim() || !regionId || saving) ? 0.45 : 1,
-                }}
-              >
-                {saving ? 'saving…' : isEditMode ? 'save changes' : status === 'proposed' ? 'propose dream' : 'add to wall'}
-              </button>
             </div>
             </div>{/* end scrollable content */}
           </motion.div>
