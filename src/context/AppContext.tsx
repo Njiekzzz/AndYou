@@ -495,15 +495,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const leaveWall = useCallback(async () => {
     if (!wall || !user) return
-    try { await deleteDoc(userDoc(wall.id, user.id)) } catch {}
     const gu = googleUserRef.current
     if (gu) {
+      // Google-signed-in: keep the user doc in Firestore so the userId is permanently preserved.
+      // On rejoin, google_uid check will find this doc and reuse the same userId.
+      // Only clear user_profiles so the wall isn't auto-restored on next sign-in.
       try {
         const snap = await getDoc(doc(db, 'user_profiles', gu.uid))
         if (snap.exists() && (snap.data() as UserProfile).wallId === wall.id) {
           await deleteDoc(doc(db, 'user_profiles', gu.uid))
         }
       } catch {}
+    } else {
+      // No Google account: delete the doc — can't reidentify this user on rejoin anyway
+      try { await deleteDoc(userDoc(wall.id, user.id)) } catch {}
     }
     clearWallId()
     clearUser()
