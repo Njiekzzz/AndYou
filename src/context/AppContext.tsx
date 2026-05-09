@@ -203,13 +203,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    // Load users
-    getDocs(usersCol(wallId)).then(snap => {
-      const users = snap.docs.map(d => d.data() as User)
-      setUsersInWall(users)
+    // Real-time: users (partner appears/disappears live)
+    const usersUnsub = onSnapshot(usersCol(wallId), snap => {
+      const wallUsers = snap.docs.map(d => d.data() as User)
+      setUsersInWall(wallUsers)
       const currentUser = loadUser()
       if (currentUser) {
-        setPartner(users.find(u => u.id !== currentUser.id) ?? null)
+        const others = wallUsers.filter(u => u.id !== currentUser.id)
+        // If multiple "other" users exist (ghost docs), prefer ones without the current user's google_uid
+        const partner = others.find(u => !currentUser.google_uid || u.google_uid !== currentUser.google_uid)
+          ?? others[0]
+          ?? null
+        setPartner(partner)
       }
     })
 
@@ -279,6 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
 
     return () => {
+      usersUnsub()
       itemsUnsub()
       regionsUnsub()
       reactionsUnsub()
@@ -342,10 +348,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (gu) {
       // Check if this Google account already has a user doc in this wall (handles leave-then-rejoin race)
       const existingSnap = await getDocs(usersCol(wallData.id))
-      const existingDoc = existingSnap.docs.find(d => (d.data() as User).google_uid === gu.uid)
+      const matchingDocs = existingSnap.docs.filter(d => (d.data() as User).google_uid === gu.uid)
+      const existingDoc = matchingDocs[0]
+
       if (existingDoc) {
         userId = existingDoc.id
         newUser = { ...existingDoc.data() as User, name, avatar_color: color }
+        // Delete any duplicate ghost docs for this google_uid (shouldn't happen, but clean up just in case)
+        await Promise.all(matchingDocs.slice(1).map(d => deleteDoc(d.ref)))
       } else {
         userId = uuidv4()
         newUser = { id: userId, wall_id: wallData.id, name, avatar_color: color, google_uid: gu.uid }
@@ -474,6 +484,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setItems([])
     setRegions([])
     setPartner(null)
+    setUsersInWall([])
     setWall(null)
     setIsLoading(true)
     const newUser: User = { id: saved.userId, wall_id: saved.wallId, name: saved.name, avatar_color: saved.color }
@@ -499,6 +510,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeFromSavedWalls(wall.id)
     setWall(null)
     setPartner(null)
+    setUsersInWall([])
     setItems([])
     setRegions([])
     setSavedWalls(loadSavedWalls())
@@ -544,8 +556,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     } else if (wall && user) {
-      // Link the current wall to this Google account
+      // Link the current wall to this Google account and stamp google_uid on the user doc
       await setDoc(doc(db, 'user_profiles', uid), { uid, wallId: wall.id, userId: user.id })
+      await updateDoc(userDoc(wall.id, user.id), { google_uid: uid })
+      saveUser({ ...user, google_uid: uid })
+      setUser(prev => prev ? { ...prev, google_uid: uid } : prev)
     }
   }, [wall, user])
 
