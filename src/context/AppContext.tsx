@@ -13,7 +13,7 @@ import {
   savePolaroidStyle, loadPolaroidStyle,
   saveNotificationsEnabled, loadNotificationsEnabled,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment, Dare, DareTarget } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment, Dare, DareTarget, Clash } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -111,6 +111,10 @@ interface AppContextType {
   completeDare: (id: string, asTradeCreator: boolean, photo?: string | null, note?: string | null) => Promise<void>
   updateDarePosition: (id: string, x: number, y: number) => Promise<void>
   setDareReaction: (id: string, asCreator: boolean, emoji: string) => Promise<void>
+  clashes: Clash[]
+  addClash: () => Promise<string>
+  updateClash: (id: string, updates: Partial<Clash>) => Promise<void>
+  deleteClash: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -133,6 +137,8 @@ const commentsCol = (wallId: string) => collection(db, 'walls', wallId, 'comment
 const commentDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'comments', id)
 const daresCol = (wallId: string) => collection(db, 'walls', wallId, 'dares')
 const dareDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'dares', id)
+const clashesCol = (wallId: string) => collection(db, 'walls', wallId, 'clashes')
+const clashDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'clashes', id)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser())
@@ -157,6 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [comments, setComments] = useState<Record<string, Comment[]>>({})
   const [dares, setDares] = useState<Dare[]>([])
   const prevDaresRef = useRef<Dare[]>([])
+  const [clashes, setClashes] = useState<Clash[]>([])
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -379,6 +386,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDares(data)
     })
 
+    const clashesUnsub = onSnapshot(clashesCol(wallId), snap => {
+      setClashes(snap.docs.map(d => d.data() as Clash))
+    })
+
     setIsLoading(false)
 
     return () => {
@@ -390,6 +401,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       stickersUnsub()
       commentsUnsub()
       daresUnsub()
+      clashesUnsub()
     }
   }, [user?.id, setItems, setRegions])
 
@@ -787,6 +799,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await updateDoc(dareDoc(wall.id, id), { [field]: emoji })
   }, [wall])
 
+  const addClash = useCallback(async (): Promise<string> => {
+    if (!wall || !user) return ''
+    // Cancel any existing active clashes first
+    const active = clashes.filter(c => ['selecting', 'pending_acceptance', 'live'].includes(c.status))
+    for (const c of active) {
+      await updateDoc(clashDoc(wall.id, c.id), { status: 'cancelled' })
+    }
+    const id = uuidv4()
+    const newClash: Clash = {
+      id,
+      wall_id: wall.id,
+      dare_a_id: null,
+      dare_b_id: null,
+      user_a_id: user.id,
+      user_b_id: null,
+      user_a_accepted: false,
+      user_b_accepted: false,
+      status: 'selecting',
+      created_at: new Date().toISOString(),
+    }
+    await setDoc(clashDoc(wall.id, id), newClash)
+    return id
+  }, [wall, user, clashes])
+
+  const updateClash = useCallback(async (id: string, updates: Partial<Clash>) => {
+    if (!wall) return
+    await updateDoc(clashDoc(wall.id, id), updates as Record<string, unknown>)
+  }, [wall])
+
+  const deleteClash = useCallback(async (id: string) => {
+    if (!wall) return
+    await deleteDoc(clashDoc(wall.id, id))
+  }, [wall])
+
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -840,6 +886,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
       comments, addComment, deleteComment, uploadAudio,
       dares, addDare, updateDare, deleteDare, completeDare, updateDarePosition, setDareReaction,
+      clashes, addClash, updateClash, deleteClash,
     }}>
       {children}
     </AppContext.Provider>

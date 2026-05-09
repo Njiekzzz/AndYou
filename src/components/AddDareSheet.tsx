@@ -17,7 +17,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [assignedTo, setAssignedTo] = useState<DareTarget>(partner ? 'partner' : 'self')
+  const [assignedTo, setAssignedTo] = useState<DareTarget>('partner')
   const [tradeTitle, setTradeTitle] = useState('')
   const [tradeDescription, setTradeDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -39,7 +39,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
       } else {
         setTitle('')
         setDescription('')
-        setAssignedTo(partner ? 'partner' : 'self')
+        setAssignedTo('partner')
         setTradeTitle('')
         setTradeDescription('')
         setDueDate('')
@@ -61,6 +61,8 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
           due_date: dueDate || null,
           trade_title: assignedTo === 'trade' ? (tradeTitle.trim() || null) : null,
           trade_description: assignedTo === 'trade' ? (tradeDescription.trim() || null) : null,
+          // Clear change request on resubmit
+          ...(editDare.status === 'change_requested' ? { status: 'pending' as const, change_request_note: null } : {}),
         })
       } else {
         await addDare({
@@ -80,18 +82,11 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
     }
   }
 
-  const submitLabel = saving
-    ? 'saving…'
-    : isEditMode
-    ? 'save'
-    : assignedTo === 'self'
-    ? 'set'
-    : 'send'
+  const submitLabel = saving ? 'saving…' : isEditMode ? 'save' : 'send'
 
   const assignOptions: { value: DareTarget; label: string }[] = [
-    ...(partner ? [{ value: 'partner' as DareTarget, label: 'challenge them' }] : []),
-    ...(partner ? [{ value: 'trade' as DareTarget, label: 'trade' }] : []),
-    { value: 'self', label: 'myself' },
+    { value: 'partner' as DareTarget, label: 'challenge them' },
+    { value: 'trade' as DareTarget, label: 'trade' },
   ]
 
   return (
@@ -148,6 +143,24 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
             {/* Scrollable content */}
             <div style={{ overflowY: 'auto', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
               <div style={{ padding: '16px 20px 32px' }}>
+
+                {/* Change request note — shown read-only when editing a change_requested dare */}
+                {isEditMode && editDare?.status === 'change_requested' && editDare.change_request_note && (
+                  <div style={{
+                    marginBottom: 20,
+                    borderLeft: '3px solid var(--amber)',
+                    background: 'rgba(212,144,10,0.08)',
+                    padding: '10px 14px',
+                    borderRadius: '0 8px 8px 0',
+                  }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--amber)', margin: '0 0 4px' }}>
+                      change requested
+                    </p>
+                    <p style={{ fontSize: 13, color: 'var(--text-mid)', fontStyle: 'italic', margin: 0 }}>
+                      {editDare.change_request_note}
+                    </p>
+                  </div>
+                )}
 
                 {/* Assign to */}
                 <div style={{ marginBottom: 20 }}>

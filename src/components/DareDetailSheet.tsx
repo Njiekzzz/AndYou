@@ -24,6 +24,9 @@ export function DareDetailSheet({ dare, onClose, onEdit, onReveal }: DareDetailS
   const { user, partner, getUserById, updateDare, deleteDare } = useApp()
   const [completeOpen, setCompleteOpen] = useState(false)
   const [asTradeCreator, setAsTradeCreator] = useState(false)
+  const [changeRequestOpen, setChangeRequestOpen] = useState(false)
+  const [changeRequestNote, setChangeRequestNote] = useState('')
+  const [sendingChangeRequest, setSendingChangeRequest] = useState(false)
   const touchStartY = useRef(0)
   const onHandleTouchStart = useCallback((e: React.TouchEvent) => { touchStartY.current = e.touches[0].clientY }, [])
   const onHandleTouchEnd = useCallback((e: React.TouchEvent) => { if (e.changedTouches[0].clientY - touchStartY.current > 80) onClose() }, [onClose])
@@ -82,6 +85,21 @@ export function DareDetailSheet({ dare, onClose, onEdit, onReveal }: DareDetailS
 
   const handleSkip = async () => {
     await updateDare(dare.id, { status: 'skipped' })
+  }
+
+  const handleSendChangeRequest = async () => {
+    if (!changeRequestNote.trim() || sendingChangeRequest) return
+    setSendingChangeRequest(true)
+    try {
+      await updateDare(dare.id, {
+        status: 'change_requested',
+        change_request_note: changeRequestNote.trim(),
+      })
+      setChangeRequestOpen(false)
+      setChangeRequestNote('')
+    } finally {
+      setSendingChangeRequest(false)
+    }
   }
 
   const handleDelete = async () => {
@@ -161,8 +179,91 @@ export function DareDetailSheet({ dare, onClose, onEdit, onReveal }: DareDetailS
                       {/* Status + actions */}
                       <div style={{ height: 1, background: 'var(--border)', marginBottom: 16 }} />
 
-                      {/* For me — pending */}
-                      {(isForMe || isSelf) && dare.status === 'pending' && (
+                      {/* For me — pending: 3 action buttons */}
+                      {isForMe && dare.status === 'pending' && (
+                        <div>
+                          <div style={{ display: 'flex', gap: 8, marginBottom: changeRequestOpen ? 12 : 0 }}>
+                            <button
+                              onClick={handleAccept}
+                              style={{
+                                flex: 1, height: 36, borderRadius: 8,
+                                background: 'var(--amber)', color: '#fff',
+                                fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-sans)',
+                                border: 'none', cursor: 'pointer',
+                              }}
+                            >
+                              accept
+                            </button>
+                            <button
+                              onClick={handleSkip}
+                              style={{
+                                flex: 1, height: 36, borderRadius: 8,
+                                background: 'transparent', color: 'var(--text-muted)',
+                                fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-sans)',
+                                border: '1px solid var(--spine-color)', cursor: 'pointer',
+                              }}
+                            >
+                              decline
+                            </button>
+                            <button
+                              onClick={() => setChangeRequestOpen(v => !v)}
+                              style={{
+                                flex: 1, height: 36, borderRadius: 8,
+                                background: 'transparent', color: 'var(--amber)',
+                                fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-sans)',
+                                border: '1px solid var(--amber)', cursor: 'pointer',
+                              }}
+                            >
+                              request change
+                            </button>
+                          </div>
+
+                          {/* Inline change request input */}
+                          {changeRequestOpen && (
+                            <div style={{ marginTop: 4 }}>
+                              <input
+                                type="text"
+                                value={changeRequestNote}
+                                onChange={e => setChangeRequestNote(e.target.value)}
+                                placeholder="what would you like changed?"
+                                style={{
+                                  width: '100%', boxSizing: 'border-box',
+                                  background: 'var(--cream-dark)', border: '1px solid var(--spine-color)',
+                                  borderRadius: 8, padding: '10px 12px',
+                                  fontSize: 14, fontFamily: 'var(--font-sans)',
+                                  color: 'var(--text-primary)',
+                                }}
+                              />
+                              <button
+                                onClick={handleSendChangeRequest}
+                                disabled={!changeRequestNote.trim() || sendingChangeRequest}
+                                style={{
+                                  width: '100%', height: 40, marginTop: 8, borderRadius: 8,
+                                  background: changeRequestNote.trim() ? 'var(--amber)' : 'var(--border)',
+                                  color: '#fff', fontSize: 14, fontWeight: 600,
+                                  fontFamily: 'var(--font-sans)', border: 'none', cursor: 'pointer',
+                                }}
+                              >
+                                {sendingChangeRequest ? 'sending…' : 'send request'}
+                              </button>
+                              <button
+                                onClick={() => { setChangeRequestOpen(false); setChangeRequestNote('') }}
+                                style={{
+                                  display: 'block', margin: '8px auto 0',
+                                  fontSize: 13, color: 'var(--text-muted)',
+                                  background: 'none', border: 'none', cursor: 'pointer',
+                                  fontFamily: 'var(--font-sans)',
+                                }}
+                              >
+                                cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Self dare — pending */}
+                      {isSelf && dare.status === 'pending' && (
                         <div style={{ display: 'flex', gap: 10 }}>
                           <button
                             onClick={handleAccept}
@@ -179,6 +280,38 @@ export function DareDetailSheet({ dare, onClose, onEdit, onReveal }: DareDetailS
                         </div>
                       )}
 
+                      {/* Sender: change_requested state */}
+                      {iAmCreator && !isSelf && dare.status === 'change_requested' && (
+                        <div>
+                          <div style={{
+                            borderLeft: '3px solid var(--amber)',
+                            background: 'rgba(212,144,10,0.08)',
+                            padding: '8px 12px', borderRadius: '0 8px 8px 0',
+                            marginBottom: 12,
+                          }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--amber)', margin: '0 0 4px' }}>
+                              change requested
+                            </p>
+                            {dare.change_request_note && (
+                              <p style={{ fontSize: 13, color: 'var(--text-mid)', fontStyle: 'italic', margin: 0 }}>
+                                {dare.change_request_note}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => { onClose(); setTimeout(() => onEdit(dare.id), 200) }}
+                            style={{
+                              width: '100%', height: 36, borderRadius: 8,
+                              background: 'var(--amber)', color: '#fff',
+                              fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-sans)',
+                              border: 'none', cursor: 'pointer',
+                            }}
+                          >
+                            edit & resubmit
+                          </button>
+                        </div>
+                      )}
+
                       {/* For me — accepted */}
                       {(isForMe || isSelf) && dare.status === 'accepted' && (
                         <button
@@ -190,9 +323,14 @@ export function DareDetailSheet({ dare, onClose, onEdit, onReveal }: DareDetailS
                       )}
 
                       {/* I sent it — pending/accepted */}
-                      {iAmCreator && !isSelf && (dare.status === 'pending' || dare.status === 'accepted') && (
+                      {iAmCreator && !isSelf && dare.status === 'pending' && (
                         <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-sans)' }}>
                           waiting for {partnerName}…
+                        </p>
+                      )}
+                      {iAmCreator && !isSelf && dare.status === 'accepted' && (
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-sans)' }}>
+                          {partnerName} accepted — waiting for them to complete it
                         </p>
                       )}
 

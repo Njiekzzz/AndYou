@@ -1,16 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { Dare } from '../types'
-import { DareCard, DARE_CARD_TOTAL_HEIGHT } from './DareCard'
+import { DareCard } from './DareCard'
 import { DareDetailSheet } from './DareDetailSheet'
 import { TradeReveal } from './TradeReveal'
+import { ClashPanel } from './ClashPanel'
 
-const CANVAS_W = 2600
-const CANVAS_H = 3400
-const DEFAULT_SCALE = 0.88
-const MIN_SCALE = 0.35
-const MAX_SCALE = 2.2
+const CANVAS_W = 560
+const CARD_H = 270
 const DRAG_THRESHOLD = 8
 
 interface DaresBoardProps {
@@ -26,54 +23,57 @@ function defaultPos(dare: Dare, index: number): { x: number; y: number } {
   const col = index % 3
   const row = Math.floor(index / 3)
   const seed = dare.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  const ox = (seed % 32) - 16
-  const oy = ((seed * 7) % 32) - 16
-  return { x: 24 + col * 180 + ox, y: 24 + row * 280 + oy }
+  const colW = Math.floor((CANVAS_W - 40) / 3)
+  const ox = (seed % 20) - 10
+  const oy = ((seed * 7) % 20) - 10
+  return { x: 20 + col * colW + ox, y: 20 + row * 260 + oy }
 }
 
 export function DaresBoard({ onAddDare }: DaresBoardProps) {
-  const { dares, user, getUserById, updateDarePosition } = useApp()
+  const { dares, user, getUserById, updateDarePosition, theme, addClash, clashes } = useApp()
 
-  const [pan, setPan] = useState({ x: 16, y: 16 })
-  const [scale, setScale] = useState(DEFAULT_SCALE)
+  // Section 2: filter out 'self' type dares
+  const visibleDares = dares.filter(d => d.assigned_to !== 'self')
+
+  const isDark = theme === 'dark'
+
   const [localPos, setLocalPos] = useState<Record<string, { x: number; y: number }>>({})
   const [selectedDare, setSelectedDare] = useState<Dare | null>(null)
   const [revealDare, setRevealDare] = useState<Dare | null>(null)
-  const [editDareId, setEditDareId] = useState<string | null>(null)
+  const [clashPanelOpen, setClashPanelOpen] = useState(false)
 
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const panRef = useRef({ x: 16, y: 16 })
-  const scaleRef = useRef(DEFAULT_SCALE)
+  // Whiteboard state
+  const boardRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [isOverview, setIsOverview] = useState(true)
+  const [fitScale, setFitScale] = useState(0.6)
+  const [scale, setScale] = useState(0.6)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showHint, setShowHint] = useState(false)
+  const isOverviewRef = useRef(true)
+  const fitScaleRef = useRef(0.6)
 
-  // gesture state refs (no re-render during gesture)
+  // Card drag gesture state
   const gesture = useRef<{
-    kind: 'pan' | 'card'
     pointerId: number
     startPX: number; startPY: number
-    // pan
-    startPanX?: number; startPanY?: number
-    // card drag
-    dareId?: string
-    cardStartX?: number; cardStartY?: number
-    cardEl?: HTMLElement
-    moved: number  // cumulative movement in px
+    dareId: string
+    cardStartX: number; cardStartY: number
+    cardEl: HTMLElement
+    moved: number
+    isDraggable: boolean
   } | null>(null)
-
-  const pinch = useRef<{
-    id1: number; id2: number
-    x1: number; y1: number; x2: number; y2: number
-    startDist: number; startScale: number
-    startPanX: number; startPanY: number
-  } | null>(null)
-
-  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map())
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  // Canvas height grows with card count
+  const numRows = Math.max(1, Math.ceil(visibleDares.length / 3))
+  const CANVAS_H = Math.max(400, 40 + numRows * 260 + CARD_H)
 
   // Sync positions from Firestore for new dares
   useEffect(() => {
     if (!user) return
     const updates: Record<string, { x: number; y: number }> = {}
-    dares.forEach((dare, i) => {
+    visibleDares.forEach((dare, i) => {
       if (!localPos[dare.id]) {
         updates[dare.id] = dare.positions?.[user.id] ?? defaultPos(dare, i)
       }
@@ -81,273 +81,310 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
     if (Object.keys(updates).length > 0) {
       setLocalPos(prev => ({ ...prev, ...updates }))
     }
-  }, [dares, user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visibleDares.length, user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep selectedDare in sync with latest Firestore data
+  // Keep selectedDare in sync with Firestore
   useEffect(() => {
     if (selectedDare) {
-      const updated = dares.find(d => d.id === selectedDare.id)
+      const updated = visibleDares.find(d => d.id === selectedDare.id)
       if (updated) setSelectedDare(updated)
+      else setSelectedDare(null)
     }
   }, [dares]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const schedulePositionSave = useCallback((id: string, x: number, y: number) => {
-    if (saveTimers.current[id]) clearTimeout(saveTimers.current[id])
-    saveTimers.current[id] = setTimeout(() => {
-      updateDarePosition(id, x, y)
-    }, 600)
-  }, [updateDarePosition])
+  // Compute fit scale
+  const recalcFitScale = useCallback(() => {
+    if (!boardRef.current) return
+    const boardW = boardRef.current.offsetWidth - 32
+    const boardH = boardRef.current.offsetHeight - 32
+    if (boardW <= 0 || boardH <= 0) return
+    const s = Math.min(boardW / CANVAS_W, boardH / CANVAS_H, 1)
+    fitScaleRef.current = s
+    setFitScale(s)
+    if (isOverviewRef.current) setScale(s)
+  }, [CANVAS_H])
 
-  const viewportRect = useCallback(() => {
-    return viewportRef.current?.getBoundingClientRect() ?? { left: 0, top: 0, width: 375, height: 600 }
+  useEffect(() => {
+    recalcFitScale()
+  }, [recalcFitScale, visibleDares.length])
+
+  useEffect(() => {
+    const ro = new ResizeObserver(() => recalcFitScale())
+    if (boardRef.current) ro.observe(boardRef.current)
+    return () => ro.disconnect()
+  }, [recalcFitScale])
+
+  // Auto-open clash panel if active clash exists for this wall
+  useEffect(() => {
+    const active = clashes.find(c => ['selecting', 'pending_acceptance', 'live'].includes(c.status))
+    if (active && !clashPanelOpen) {
+      setTimeout(() => setClashPanelOpen(true), 300)
+    }
+  }, [clashes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleBoardTap = useCallback(() => {
+    if (!isOverviewRef.current) return
+    isOverviewRef.current = false
+    setIsOverview(false)
+    setIsTransitioning(true)
+    setScale(1)
+
+    const hintKey = 'dare-zoom-hint-dismissed'
+    if (!localStorage.getItem(hintKey)) {
+      setShowHint(true)
+      setTimeout(() => {
+        setShowHint(false)
+        localStorage.setItem(hintKey, '1')
+      }, 2000)
+    }
+
+    setTimeout(() => setIsTransitioning(false), 300)
   }, [])
 
-  // ── Pointer events ─────────────────────────────────────────────────────
+  const returnToOverview = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    isOverviewRef.current = true
+    setIsOverview(true)
+    setIsTransitioning(true)
+    setScale(fitScaleRef.current)
+    setTimeout(() => setIsTransitioning(false), 300)
+  }, [])
+
+  const schedulePositionSave = useCallback((id: string, x: number, y: number) => {
+    if (saveTimers.current[id]) clearTimeout(saveTimers.current[id])
+    saveTimers.current[id] = setTimeout(() => updateDarePosition(id, x, y), 600)
+  }, [updateDarePosition])
+
+  // Card drag — only active when zoomed in
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (pinch.current) return  // ignore during pinch
-
-    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    if (activePointers.current.size >= 2) return  // handled by touch events
-
-    // Check if touch target is a draggable dare card
     const cardEl = (e.target as Element).closest('[data-dare-id]') as HTMLElement | null
-    if (cardEl) {
-      const dareId = cardEl.dataset.dareId!
-      const dare = dares.find(d => d.id === dareId)
-      if (dare && dare.created_by === user?.id) {
-        const pos = localPos[dareId] ?? defaultPos(dare, dares.indexOf(dare))
-        gesture.current = {
-          kind: 'card', pointerId: e.pointerId,
-          startPX: e.clientX, startPY: e.clientY,
-          dareId, cardStartX: pos.x, cardStartY: pos.y,
-          cardEl, moved: 0,
-        }
-        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-        return
-      }
-    }
+    if (!cardEl) return
 
-    // Pan the canvas
+    const dareId = cardEl.dataset.dareId!
+    const dare = visibleDares.find(d => d.id === dareId)
+    if (!dare) return
+
+    const isDraggable = dare.created_by === user?.id
+    const idx = visibleDares.indexOf(dare)
+    const pos = localPos[dareId] ?? defaultPos(dare, idx)
+
     gesture.current = {
-      kind: 'pan', pointerId: e.pointerId,
+      pointerId: e.pointerId,
       startPX: e.clientX, startPY: e.clientY,
-      startPanX: panRef.current.x, startPanY: panRef.current.y,
-      moved: 0,
+      dareId, cardStartX: pos.x, cardStartY: pos.y,
+      cardEl, moved: 0, isDraggable,
     }
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }, [dares, user?.id, localPos])
+  }, [visibleDares, user?.id, localPos])
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
-    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (!gesture.current || gesture.current.pointerId !== e.pointerId) return
-
     const dx = e.clientX - gesture.current.startPX
     const dy = e.clientY - gesture.current.startPY
     gesture.current.moved = Math.sqrt(dx * dx + dy * dy)
 
-    if (gesture.current.kind === 'pan') {
-      const newX = (gesture.current.startPanX ?? 0) + dx
-      const newY = (gesture.current.startPanY ?? 0) + dy
-      panRef.current = { x: newX, y: newY }
-      // Update DOM directly for smooth panning
-      const canvas = viewportRef.current?.querySelector<HTMLElement>('[data-canvas]')
-      if (canvas) canvas.style.transform = `translate(${newX}px, ${newY}px) scale(${scaleRef.current})`
-    } else if (gesture.current.kind === 'card' && gesture.current.cardEl) {
-      const cdx = dx / scaleRef.current
-      const cdy = dy / scaleRef.current
-      // Move card directly in DOM (no React re-render)
-      gesture.current.cardEl.style.transform = `rotate(${getDareRotation(gesture.current.dareId!)}deg) translate(${cdx}px, ${cdy}px)`
+    if (gesture.current.isDraggable && gesture.current.moved > DRAG_THRESHOLD) {
+      gesture.current.cardEl.style.transform = `rotate(${getDareRotation(gesture.current.dareId)}deg) translate(${dx}px, ${dy}px)`
     }
   }, [])
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
-    activePointers.current.delete(e.pointerId)
     if (!gesture.current || gesture.current.pointerId !== e.pointerId) return
+    const { dareId, cardStartX, cardStartY, cardEl, startPX, startPY, moved, isDraggable } = gesture.current
 
-    const { kind, moved } = gesture.current
-
-    if (kind === 'pan') {
-      // Commit pan state to React
-      setPan({ ...panRef.current })
-
-    } else if (kind === 'card') {
-      const { dareId, cardStartX, cardStartY, cardEl, startPX, startPY } = gesture.current
-      const dx = (e.clientX - startPX) / scaleRef.current
-      const dy = (e.clientY - startPY) / scaleRef.current
-      const newX = (cardStartX ?? 0) + dx
-      const newY = (cardStartY ?? 0) + dy
-
-      if (moved < DRAG_THRESHOLD) {
-        // Tap — reset transform and open detail
-        if (cardEl) cardEl.style.transform = `rotate(${getDareRotation(dareId!)}deg)`
-        const dare = dares.find(d => d.id === dareId)
-        if (dare) setSelectedDare(dare)
-      } else {
-        // Drop — commit position
-        if (cardEl) cardEl.style.transform = `rotate(${getDareRotation(dareId!)}deg)`
-        setLocalPos(prev => ({ ...prev, [dareId!]: { x: newX, y: newY } }))
-        schedulePositionSave(dareId!, newX, newY)
-      }
+    if (moved < DRAG_THRESHOLD) {
+      cardEl.style.transform = `rotate(${getDareRotation(dareId)}deg)`
+      const dare = visibleDares.find(d => d.id === dareId)
+      if (dare) setSelectedDare(dare)
+    } else if (isDraggable) {
+      const dx = e.clientX - startPX
+      const dy = e.clientY - startPY
+      const newX = cardStartX + dx
+      const newY = cardStartY + dy
+      cardEl.style.transform = `rotate(${getDareRotation(dareId)}deg)`
+      setLocalPos(prev => ({ ...prev, [dareId]: { x: newX, y: newY } }))
+      schedulePositionSave(dareId, newX, newY)
+    } else {
+      cardEl.style.transform = `rotate(${getDareRotation(dareId)}deg)`
     }
 
     gesture.current = null
-  }, [dares, schedulePositionSave])
+  }, [visibleDares, schedulePositionSave])
 
-  // ── Touch events (pinch zoom) ────────────────────────────────────────
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const t1 = e.touches[0], t2 = e.touches[1]
-      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
-      pinch.current = {
-        id1: t1.identifier, id2: t2.identifier,
-        x1: t1.clientX, y1: t1.clientY,
-        x2: t2.clientX, y2: t2.clientY,
-        startDist: dist,
-        startScale: scaleRef.current,
-        startPanX: panRef.current.x,
-        startPanY: panRef.current.y,
-      }
-      gesture.current = null  // cancel any ongoing gesture
-    }
-  }, [])
+  const handleChallengeTime = useCallback(async () => {
+    if (!user) return
+    const clashId = await addClash()
+    if (clashId) setClashPanelOpen(true)
+  }, [user, addClash])
 
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!pinch.current || e.touches.length < 2) return
-    e.preventDefault()
-
-    const t1 = Array.from(e.touches).find(t => t.identifier === pinch.current!.id1)
-    const t2 = Array.from(e.touches).find(t => t.identifier === pinch.current!.id2)
-    if (!t1 || !t2) return
-
-    const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
-    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinch.current.startScale * (newDist / pinch.current.startDist)))
-
-    // Pivot point: midpoint of the two touches
-    const rect = viewportRect()
-    const midX = (t1.clientX + t2.clientX) / 2 - rect.left
-    const midY = (t1.clientY + t2.clientY) / 2 - rect.top
-
-    const ratio = newScale / scaleRef.current
-    const newPanX = midX + (panRef.current.x - midX) * ratio
-    const newPanY = midY + (panRef.current.y - midY) * ratio
-
-    scaleRef.current = newScale
-    panRef.current = { x: newPanX, y: newPanY }
-
-    const canvas = viewportRef.current?.querySelector<HTMLElement>('[data-canvas]')
-    if (canvas) canvas.style.transform = `translate(${newPanX}px, ${newPanY}px) scale(${newScale})`
-  }, [viewportRect])
-
-  const onTouchEnd = useCallback(() => {
-    if (pinch.current) {
-      setScale(scaleRef.current)
-      setPan({ ...panRef.current })
-      pinch.current = null
-    }
-  }, [])
-
-  // ── Scroll wheel zoom ────────────────────────────────────────────────
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const rect = viewportRect()
-    const pointerX = e.clientX - rect.left
-    const pointerY = e.clientY - rect.top
-
-    const delta = -e.deltaY * 0.001
-    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scaleRef.current * (1 + delta)))
-    const ratio = newScale / scaleRef.current
-
-    const newPanX = pointerX + (panRef.current.x - pointerX) * ratio
-    const newPanY = pointerY + (panRef.current.y - pointerY) * ratio
-
-    scaleRef.current = newScale
-    panRef.current = { x: newPanX, y: newPanY }
-
-    setScale(newScale)
-    setPan({ x: newPanX, y: newPanY })
-  }, [viewportRect])
-
-  const isEmpty = dares.length === 0
+  const isEmpty = visibleDares.length === 0
 
   return (
     <>
-      <div
-        ref={viewportRef}
-        style={{
-          position: 'fixed', top: 64, bottom: 72, left: 0, right: 0,
-          overflow: 'hidden', touchAction: 'none',
-          background: 'var(--bg-main)',
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onWheel={onWheel}
-      >
-        {/* Virtual canvas */}
-        <div
-          data-canvas
-          className="dot-grid"
-          style={{
-            position: 'absolute',
-            transformOrigin: '0 0',
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-            width: CANVAS_W, height: CANVAS_H,
-          }}
-        >
-          {dares.map((dare, i) => {
-            const pos = localPos[dare.id] ?? defaultPos(dare, i)
-            const creator = getUserById(dare.created_by)
-            return (
-              <DareCard
-                key={dare.id}
-                dare={dare}
-                x={pos.x}
-                y={pos.y}
-                creator={creator}
-                currentUserId={user?.id ?? ''}
-                onTap={() => setSelectedDare(dare)}
-                isDraggable={dare.created_by === user?.id}
-              />
-            )
-          })}
+      {/* Fixed container filling space between TopBar and BottomNav */}
+      <div style={{
+        position: 'fixed', top: 64, bottom: 72, left: 0, right: 0,
+        display: 'flex', flexDirection: 'column',
+        padding: '8px 16px 12px',
+        boxSizing: 'border-box',
+        background: 'var(--bg-main, var(--cream))',
+      }}>
+        {/* Challenge tab header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: 52, flexShrink: 0,
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+            fontSize: 20, color: 'var(--text-primary)',
+          }}>
+            challenges
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Challenge Time button */}
+            <button
+              onClick={handleChallengeTime}
+              style={{
+                height: 40, padding: '0 14px',
+                borderRadius: 20,
+                background: 'transparent',
+                border: '1.5px solid var(--amber)',
+                color: 'var(--amber)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13, fontWeight: 600,
+                letterSpacing: '0.03em',
+                display: 'flex', alignItems: 'center', gap: 6,
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--amber)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 1L3 7h4l-2 4 6-7H7l1-3z"/>
+              </svg>
+              challenge time
+            </button>
+          </div>
         </div>
 
-        {/* Empty state */}
-        {isEmpty && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        {/* Whiteboard wrapper — relative for overlay positioning */}
+        <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+          {/* Whiteboard board */}
+          <div
+            ref={boardRef}
             style={{
-              position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', gap: 12, pointerEvents: 'none',
+              position: 'absolute', inset: 0,
+              background: isDark ? '#1a1710' : '#fafaf8',
+              border: `2px solid ${isDark ? '#4a4030' : '#c4b89a'}`,
+              borderRadius: 12,
+              boxShadow: isDark
+                ? 'inset 0 0 0 6px #221e14, inset 0 0 0 7px #4a4030, 0 4px 24px rgba(0,0,0,0.4)'
+                : 'inset 0 0 0 6px #f0ebe0, inset 0 0 0 7px #c4b89a, 0 4px 24px rgba(50,35,10,0.14)',
+              overflow: isOverview ? 'hidden' : 'auto',
+              cursor: isOverview ? 'zoom-in' : 'default',
             }}
+            onClick={isOverview ? handleBoardTap : undefined}
           >
-            <svg width="60" height="60" viewBox="0 0 60 60" fill="none" opacity={0.35}>
-              <rect x="8" y="4" width="44" height="52" rx="4" stroke="var(--text-muted)" strokeWidth="1.5"/>
-              <path d="M16 20h28M16 28h20M16 36h14" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round"/>
-              <path d="M36 44l4-4 4 4" stroke="var(--amber)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', margin: 0 }}>no dares yet</p>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', opacity: 0.65, fontFamily: 'var(--font-sans)', margin: '6px 0 0' }}>challenge each other to something new</p>
+            {/* Inner canvas */}
+            <div
+              ref={contentRef}
+              style={{
+                position: 'relative',
+                width: CANVAS_W,
+                height: CANVAS_H,
+                transformOrigin: 'top left',
+                transform: `scale(${scale})`,
+                transition: isTransitioning ? 'transform 250ms ease-out' : 'none',
+                pointerEvents: isOverview ? 'none' : 'auto',
+              }}
+              onPointerDown={isOverview ? undefined : onPointerDown}
+              onPointerMove={isOverview ? undefined : onPointerMove}
+              onPointerUp={isOverview ? undefined : onPointerUp}
+              onPointerCancel={isOverview ? undefined : onPointerUp}
+            >
+              {visibleDares.map((dare, i) => {
+                const pos = localPos[dare.id] ?? defaultPos(dare, i)
+                const creator = getUserById(dare.created_by)
+                return (
+                  <DareCard
+                    key={dare.id}
+                    dare={dare}
+                    x={pos.x}
+                    y={pos.y}
+                    creator={creator}
+                    currentUserId={user?.id ?? ''}
+                    onTap={() => {}}
+                    isDraggable={dare.created_by === user?.id && !isOverview}
+                  />
+                )
+              })}
             </div>
-          </motion.div>
-        )}
+
+            {/* Empty state */}
+            {isEmpty && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: 12, pointerEvents: 'none',
+              }}>
+                <svg width="48" height="48" viewBox="0 0 60 60" fill="none" opacity={0.35}>
+                  <rect x="8" y="4" width="44" height="52" rx="4" stroke="var(--text-muted)" strokeWidth="1.5"/>
+                  <path d="M16 20h28M16 28h20M16 36h14" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', margin: 0 }}>no dares yet</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.65, fontFamily: 'var(--font-sans)', margin: '4px 0 0' }}>tap + to challenge each other</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Back arrow — overlays the board, outside the scrollable div */}
+          {!isOverview && (
+            <button
+              onClick={returnToOverview}
+              style={{
+                position: 'absolute', top: 10, left: 10, zIndex: 10,
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'var(--amber)', color: '#fff',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              }}
+            >
+              ←
+            </button>
+          )}
+
+          {/* Zoom hint */}
+          {showHint && (
+            <div style={{
+              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(0,0,0,0.72)', color: '#fff',
+              padding: '6px 14px', borderRadius: 20, fontSize: 12,
+              whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
+            }}>
+              tap ← to zoom back out
+            </div>
+          )}
+        </div>
       </div>
 
       <DareDetailSheet
         dare={selectedDare}
         onClose={() => setSelectedDare(null)}
-        onEdit={id => { setSelectedDare(null); setEditDareId(id); setTimeout(() => { onAddDare(id); setEditDareId(null) }, 200) }}
+        onEdit={id => { setSelectedDare(null); setTimeout(() => onAddDare(id), 200) }}
         onReveal={d => { setSelectedDare(null); setRevealDare(d) }}
       />
 
       <TradeReveal
         dare={revealDare}
         onClose={() => setRevealDare(null)}
+      />
+
+      <ClashPanel
+        open={clashPanelOpen}
+        onClose={() => setClashPanelOpen(false)}
       />
     </>
   )

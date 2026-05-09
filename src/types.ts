@@ -116,7 +116,7 @@ export interface WallSticker {
   color: string
 }
 
-export type DareStatus = 'pending' | 'accepted' | 'done' | 'skipped'
+export type DareStatus = 'pending' | 'accepted' | 'done' | 'skipped' | 'change_requested'
 export type DareTarget = 'partner' | 'trade' | 'self'
 
 export interface Dare {
@@ -132,6 +132,7 @@ export interface Dare {
   completed_at?: string | null
   completion_photo_url?: string | null
   completion_note?: string | null
+  change_request_note?: string | null
   trade_title?: string | null
   trade_description?: string | null
   trade_status?: DareStatus
@@ -141,6 +142,21 @@ export interface Dare {
   creator_reaction?: string | null
   assignee_reaction?: string | null
   positions?: Record<string, { x: number; y: number }>
+}
+
+export type ClashStatus = 'selecting' | 'pending_acceptance' | 'live' | 'completed' | 'cancelled'
+
+export interface Clash {
+  id: string
+  wall_id: string
+  dare_a_id: string | null
+  dare_b_id: string | null
+  user_a_id: string
+  user_b_id: string | null
+  user_a_accepted: boolean
+  user_b_accepted: boolean
+  status: ClashStatus
+  created_at: string
 }
 
 export const AVATAR_COLORS = [
