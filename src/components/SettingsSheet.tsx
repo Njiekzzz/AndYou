@@ -345,26 +345,7 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
                 </div>
               </div>
 
-              {/* Reset */}
-              <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                <button
-                  onClick={() => {
-                    if (!confirm('Clear all local data and start over?')) return
-                    Object.keys(localStorage)
-                      .filter(k => k.startsWith('andyou_'))
-                      .forEach(k => localStorage.removeItem(k))
-                    window.location.reload()
-                  }}
-                  style={{
-                    fontSize: 13,
-                    color: '#c97b5a',
-                    padding: '8px 0',
-                    display: 'block',
-                  }}
-                >
-                  reset & start over
-                </button>
-              </div>
+
             </div>
             </div>{/* end scrollable content */}
           </motion.div>
