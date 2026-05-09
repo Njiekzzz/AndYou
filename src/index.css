@@ -190,6 +190,13 @@ scrollbar-width: none;
   box-shadow: 0 10px 32px -8px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.35);
 }
 
+/* ─── Dare board ───────────────────────────────────────────────────────────── */
+@keyframes dare-pulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(212,144,10,0.35); transform: scale(1); }
+  50% { box-shadow: 0 4px 20px rgba(212,144,10,0.6); transform: scale(1.06); }
+}
+.dare-add-pulse { animation: dare-pulse 1.8s ease-in-out infinite; }
+
 /* ─── Inputs ───────────────────────────────────────────────────────────────── */
 input[type="text"], input[type="number"], input[type="date"], textarea, select {
   background: var(--bg-sunken);

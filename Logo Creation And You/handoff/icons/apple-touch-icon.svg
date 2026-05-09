@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="180" fill="#f5ecd9"></rect>
+  <g transform="translate(192, 372)">
+    <defs>
+      <clipPath id="lensClipA">
+        <path d="M 320 0 a 160 160 0 0 1 0 320 a 160 160 0 0 1 0 -320 z"></path>
+      </clipPath>
+    </defs>
+    <circle cx="213" cy="160" r="160" fill="#c69a4a"></circle>
+    <circle cx="427" cy="160" r="160" fill="#c8745a"></circle>
+    <g clip-path="url(#lensClipA)">
+      <rect x="160" y="0" width="320" height="320" fill="#a6602f"></rect>
+    </g>
+    <text x="320" y="225" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-style="italic" font-weight="500" font-size="170" fill="#f5ecd9">&amp;</text>
+  </g>
+</svg>

@@ -2,10 +2,10 @@ import { useApp } from '../context/AppContext'
 
 interface BottomNavProps {
   onAdd: () => void
-  onSpin?: () => void
+  pulseAdd?: boolean
 }
 
-export function BottomNav({ onAdd }: BottomNavProps) {
+export function BottomNav({ onAdd, pulseAdd }: BottomNavProps) {
   const { activeView, setActiveView } = useApp()
 
   return (
@@ -21,31 +21,31 @@ export function BottomNav({ onAdd }: BottomNavProps) {
       padding: '0 20px',
     }}>
 
-      {/* Left — Wall / List pill toggle */}
+      {/* Left — Wall / List / Dares pill toggle */}
       <div style={{
         display: 'flex', gap: 4,
         background: 'var(--cream-dark)',
         borderRadius: 24,
         padding: 4,
       }}>
-        {(['timeline', 'list'] as const).map(view => {
+        {(['timeline', 'list', 'dares'] as const).map(view => {
           const active = activeView === view
           return (
             <button
               key={view}
               onClick={() => setActiveView(view)}
               style={{
-                height: 36, padding: '0 20px',
+                height: 36, padding: '0 14px',
                 borderRadius: 20,
                 fontFamily: 'var(--font-sans)',
-                fontSize: 14, fontWeight: 500,
+                fontSize: 13, fontWeight: 500,
                 background: active ? 'var(--amber)' : 'transparent',
                 color: active ? '#fff' : 'var(--text-muted)',
                 border: 'none', cursor: 'pointer',
                 transition: 'background 0.18s, color 0.18s',
               }}
             >
-              {view === 'timeline' ? 'Wall' : 'List'}
+              {view === 'timeline' ? 'Wall' : view === 'list' ? 'List' : 'Dares'}
             </button>
           )
         })}
@@ -55,6 +55,7 @@ export function BottomNav({ onAdd }: BottomNavProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button
           onClick={onAdd}
+          className={pulseAdd ? 'dare-add-pulse' : ''}
           style={{
             width: 52, height: 52, borderRadius: '50%',
             background: 'var(--amber)',

@@ -116,6 +116,33 @@ export interface WallSticker {
   color: string
 }
 
+export type DareStatus = 'pending' | 'accepted' | 'done' | 'skipped'
+export type DareTarget = 'partner' | 'trade' | 'self'
+
+export interface Dare {
+  id: string
+  wall_id: string
+  created_by: string
+  title: string
+  description?: string | null
+  assigned_to: DareTarget
+  status: DareStatus
+  due_date?: string | null
+  created_at: string
+  completed_at?: string | null
+  completion_photo_url?: string | null
+  completion_note?: string | null
+  trade_title?: string | null
+  trade_description?: string | null
+  trade_status?: DareStatus
+  trade_completed_at?: string | null
+  trade_completion_photo_url?: string | null
+  trade_completion_note?: string | null
+  creator_reaction?: string | null
+  assignee_reaction?: string | null
+  positions?: Record<string, { x: number; y: number }>
+}
+
 export const AVATAR_COLORS = [
   '#c97b5a', // warm terracotta
   '#7b9e7b', // sage green

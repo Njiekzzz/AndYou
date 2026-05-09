@@ -1,0 +1,76 @@
+/* ==========================================================================
+   &You — Design Tokens
+   Drop-in CSS custom properties. Import once at the root of your app.
+   ========================================================================== */
+
+:root {
+  /* ---- Surfaces ---- */
+  --color-bg:           #f5ecd9;  /* cream paper — main app background */
+  --color-bg-elevated:  #fdf8eb;  /* lighter cream — cards on top of bg */
+  --color-bg-sunken:    #ede2c6;  /* slightly darker cream — inset wells */
+  --color-paper:        #ffffff;  /* polaroid white */
+
+  /* ---- Ink ---- */
+  --color-ink:          #2a2620;  /* primary text — soft espresso, never pure black */
+  --color-ink-soft:     #5a5145;  /* body text */
+  --color-ink-muted:    #8a8170;  /* labels, captions */
+  --color-line:         #e1d5b8;  /* hairlines on cream */
+  --color-line-soft:    #ebe0c7;
+
+  /* ---- Brand accent: teal ---- */
+  --color-teal:         #3a7a78;  /* primary brand accent */
+  --color-teal-deep:    #2d5f5d;  /* hover / pressed */
+  --color-teal-soft:    #d8e6e4;  /* tinted backgrounds, badges */
+
+  /* ---- Warm secondary (kept from original brand DNA) ---- */
+  --color-sand:         #e8d4a8;  /* sandy beige — secondary buttons, tags */
+  --color-sand-deep:    #d4ba80;
+  --color-ochre:        #c69a4a;  /* logo circle 1 */
+  --color-terra:        #c8745a;  /* logo circle 2 */
+  --color-terra-deep:   #a6602f;  /* logo lens */
+
+  /* ---- Status ---- */
+  --color-success:      #6b8e5a;
+  --color-warning:      #c69a4a;
+  --color-danger:       #b15a4a;
+
+  /* ---- Type ---- */
+  --font-display: "Fraunces", "Playfair Display", Georgia, serif;
+  --font-body:    "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  /* Type scale (mobile-first) */
+  --text-xs:    11px;
+  --text-sm:    13px;
+  --text-base:  15px;
+  --text-lg:    17px;
+  --text-xl:    20px;
+  --text-2xl:   24px;
+  --text-3xl:   32px;   /* screen titles */
+  --text-4xl:   42px;   /* hero / serif display */
+  --text-5xl:   56px;
+
+  /* ---- Radius ---- */
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  18px;
+  --radius-xl:  28px;
+  --radius-pill: 999px;
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- Shadow (soft, paper-like — never harsh) ---- */
+  --shadow-sm: 0 1px 2px rgba(42, 38, 32, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(42, 38, 32, 0.08), 0 2px 4px rgba(42, 38, 32, 0.04);
+  --shadow-lg: 0 14px 28px -10px rgba(42, 38, 32, 0.16), 0 4px 8px rgba(42, 38, 32, 0.06);
+  --shadow-polaroid: 0 18px 32px -14px rgba(42, 38, 32, 0.28), 0 4px 8px rgba(42, 38, 32, 0.08);
+}

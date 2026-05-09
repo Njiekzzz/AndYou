@@ -1,0 +1,70 @@
+/* ==========================================================================
+   &You — Design Tokens v3 (Cinematic + Hybrid Theme)
+   Tailwind v4 @theme block. Paste into src/index.css after @import "tailwindcss";
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@theme {
+  /* ---- Surfaces · LIGHT ---- */
+  --color-bg: #f5ecd9;
+  --color-bg-up: #fdf8eb;
+  --color-bg-down: #ede2c6;
+  --color-paper: #ffffff;
+
+  /* ---- Surfaces · DARK (deep night-teal) ---- */
+  --color-night: #0e1f24;
+  --color-night-up: #15292f;
+  --color-night-down: #081519;
+
+  /* ---- Ink ---- */
+  --color-ink: #2a2620;
+  --color-ink-soft: #5a5145;
+  --color-ink-muted: #8a8170;
+  --color-line: #e1d5b8;
+
+  /* ---- Brand cool: teal ---- */
+  --color-teal: #3a7a78;
+  --color-teal-deep: #2d5f5d;
+  --color-teal-soft: #d8e6e4;
+
+  /* ---- Brand warm: amber/gold (PRIMARY ACCENT) ---- */
+  --color-amber: #e0a04a;
+  --color-amber-deep: #b87a2a;
+  --color-amber-soft: #f5d99a;
+
+  /* ---- Logo / status ---- */
+  --color-ochre: #c69a4a;
+  --color-terra: #c8745a;
+  --color-terra-deep: #a6602f;
+  --color-sand: #e8d4a8;
+
+  /* ---- Type ---- */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --radius-pill: 9999px;
+
+  /* ---- Shadows ---- */
+  --shadow-polaroid: 0 18px 32px -14px rgba(42,38,32,0.32), 0 4px 8px rgba(42,38,32,0.10);
+  --shadow-polaroid-dark: 0 24px 48px -18px rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.35);
+  --shadow-soft: 0 4px 12px -2px rgba(42,38,32,0.08);
+}
+
+/* Dark mode override — class strategy */
+.dark {
+  --color-bg: #0e1f24;
+  --color-bg-up: #15292f;
+  --color-bg-down: #081519;
+  --color-ink: #f0e6d0;
+  --color-ink-soft: #c4baa4;
+  --color-ink-muted: #8a8472;
+  --color-line: rgba(240,230,208,0.12);
+}
+
+@layer base {
+  html { background: var(--color-bg); color: var(--color-ink); transition: background .6s ease, color .6s ease; }
+  body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.015em; }
+}

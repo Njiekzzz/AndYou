@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 140" width="240" height="140">
+  <defs>
+    <clipPath id="lensClip">
+      <path d="M 120 10 a 60 60 0 0 1 0 120 a 60 60 0 0 1 0 -120 z"></path>
+    </clipPath>
+  </defs>
+  <circle cx="80" cy="70" r="60" fill="#c69a4a"></circle>
+  <circle cx="160" cy="70" r="60" fill="#c8745a"></circle>
+  <g clip-path="url(#lensClip)">
+    <rect x="60" y="10" width="120" height="120" fill="#a6602f"></rect>
+  </g>
+  <text x="120" y="94" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-style="italic" font-weight="500" font-size="62" fill="#f5ecd9">&amp;</text>
+</svg>

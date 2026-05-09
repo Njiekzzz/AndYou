@@ -5,17 +5,21 @@ import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { TimelineCanvas } from './TimelineCanvas'
 import { ListView } from './ListView'
+import { DaresBoard } from './DaresBoard'
 import { ExpandedCard } from './ExpandedCard'
 import { AddItemSheet } from './AddItemSheet'
+import { AddDareSheet } from './AddDareSheet'
 import { SettingsSheet } from './SettingsSheet'
 import { MomentumCounter } from './MomentumCounter'
 import { BucketItem } from '../types'
 
 export function MainApp() {
-  const { activeView, items } = useApp()
+  const { activeView, items, dares } = useApp()
   const [selectedItem, setSelectedItem] = useState<BucketItem | null>(null)
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [editItem, setEditItem] = useState<BucketItem | null>(null)
+  const [addDareOpen, setAddDareOpen] = useState(false)
+  const [editDareId, setEditDareId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [spinTarget, setSpinTarget] = useState<string | null>(null)
 
@@ -39,9 +43,14 @@ export function MainApp() {
   }, [items])
 
   const handleOpenAdd = useCallback(() => {
-    setEditItem(null)
-    setAddSheetOpen(true)
-  }, [])
+    if (activeView === 'dares') {
+      setEditDareId(null)
+      setAddDareOpen(true)
+    } else {
+      setEditItem(null)
+      setAddSheetOpen(true)
+    }
+  }, [activeView])
 
   const handleEditItem = useCallback((item: BucketItem) => {
     setSelectedItem(null)
@@ -52,6 +61,11 @@ export function MainApp() {
   const handleSheetClose = useCallback(() => {
     setAddSheetOpen(false)
     setEditItem(null)
+  }, [])
+
+  const handleOpenAddDare = useCallback((editId?: string) => {
+    setEditDareId(editId ?? null)
+    setAddDareOpen(true)
   }, [])
 
   return (
@@ -65,10 +79,15 @@ export function MainApp() {
             onItemClick={setSelectedItem}
             spinTarget={spinTarget}
           />
-        ) : (
+        ) : activeView === 'list' ? (
           <ListView
             key="list"
             onItemClick={setSelectedItem}
+          />
+        ) : (
+          <DaresBoard
+            key="dares"
+            onAddDare={handleOpenAddDare}
           />
         )}
       </AnimatePresence>
@@ -77,7 +96,7 @@ export function MainApp() {
 
       <BottomNav
         onAdd={handleOpenAdd}
-        onSpin={handleSpin}
+        pulseAdd={activeView === 'dares' && dares.length === 0}
       />
 
       <AnimatePresence>
@@ -95,6 +114,12 @@ export function MainApp() {
         open={addSheetOpen}
         onClose={handleSheetClose}
         editItem={editItem}
+      />
+
+      <AddDareSheet
+        open={addDareOpen}
+        onClose={() => { setAddDareOpen(false); setEditDareId(null) }}
+        editDareId={editDareId}
       />
 
       <SettingsSheet

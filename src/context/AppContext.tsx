@@ -13,7 +13,7 @@ import {
   savePolaroidStyle, loadPolaroidStyle,
   saveNotificationsEnabled, loadNotificationsEnabled,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment, Dare, DareTarget } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -62,10 +62,10 @@ interface AppContextType {
   reactions: Record<string, Reaction[]>
   theme: 'light' | 'dark'
   isLoading: boolean
-  activeView: 'timeline' | 'list'
+  activeView: 'timeline' | 'list' | 'dares'
   googleUser: GoogleUser | null
   savedWalls: SavedWall[]
-  setActiveView: (v: 'timeline' | 'list') => void
+  setActiveView: (v: 'timeline' | 'list' | 'dares') => void
   toggleTheme: () => void
   createWall: (name: string, color: string) => Promise<string>
   joinWall: (code: string, name: string, color: string) => Promise<void>
@@ -104,6 +104,13 @@ interface AppContextType {
   addComment: (itemId: string, type: 'text' | 'voice', content: string) => Promise<void>
   deleteComment: (commentId: string) => Promise<void>
   uploadAudio: (blob: Blob) => Promise<string>
+  dares: Dare[]
+  addDare: (data: { title: string; description?: string | null; assigned_to: DareTarget; due_date?: string | null; trade_title?: string | null; trade_description?: string | null }) => Promise<string>
+  updateDare: (id: string, updates: Partial<Dare>) => Promise<void>
+  deleteDare: (id: string) => Promise<void>
+  completeDare: (id: string, asTradeCreator: boolean, photo?: string | null, note?: string | null) => Promise<void>
+  updateDarePosition: (id: string, x: number, y: number) => Promise<void>
+  setDareReaction: (id: string, asCreator: boolean, emoji: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -124,6 +131,8 @@ const stickersCol = (wallId: string) => collection(db, 'walls', wallId, 'sticker
 const stickerDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'stickers', id)
 const commentsCol = (wallId: string) => collection(db, 'walls', wallId, 'comments')
 const commentDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'comments', id)
+const daresCol = (wallId: string) => collection(db, 'walls', wallId, 'dares')
+const dareDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'dares', id)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser())
@@ -135,7 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({})
   const [theme, setTheme] = useState<'light' | 'dark'>(loadTheme())
   const [isLoading, setIsLoading] = useState(true)
-  const [activeView, setActiveView] = useState<'timeline' | 'list'>('timeline')
+  const [activeView, setActiveView] = useState<'timeline' | 'list' | 'dares'>('timeline')
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
   const googleUserRef = useRef<GoogleUser | null>(null)
   const usersInWallRef = useRef<User[]>([])
@@ -146,6 +155,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [strokes, setStrokes] = useState<DrawingStroke[]>([])
   const [stickers, setStickers] = useState<WallSticker[]>([])
   const [comments, setComments] = useState<Record<string, Comment[]>>({})
+  const [dares, setDares] = useState<Dare[]>([])
+  const prevDaresRef = useRef<Dare[]>([])
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -328,6 +339,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setComments(grouped)
     })
 
+    let daresFirstLoad = true
+    const daresUnsub = onSnapshot(query(daresCol(wallId), orderBy('created_at')), snap => {
+      const data = snap.docs.map(d => d.data() as Dare)
+
+      if (!daresFirstLoad && loadNotificationsEnabled()) {
+        snap.docChanges().forEach(change => {
+          const d = change.doc.data() as Dare
+          const partnerName = usersInWallRef.current.find(u => u.id !== user.id)?.name ?? 'your partner'
+          if (change.type === 'added' && d.created_by !== user.id) {
+            if (d.assigned_to === 'partner' || d.assigned_to === 'trade') {
+              sendLocalNotification('& you', `${partnerName} dares you to: ${d.title} 🎯`)
+            }
+          }
+          if (change.type === 'modified') {
+            const prev = prevDaresRef.current.find(p => p.id === d.id)
+            if (d.assigned_to === 'trade') {
+              const iAmCreator = d.created_by === user.id
+              if (iAmCreator && d.status === 'done' && prev?.status !== 'done') {
+                sendLocalNotification('& you', `${partnerName} completed their dare — now it's your turn 👀`)
+              }
+              if (!iAmCreator && d.trade_status === 'done' && prev?.trade_status !== 'done') {
+                sendLocalNotification('& you', `${partnerName} completed their dare — now it's your turn 👀`)
+              }
+              const bothNowDone = d.status === 'done' && d.trade_status === 'done'
+              const wasNotBothDone = !(prev?.status === 'done' && prev?.trade_status === 'done')
+              if (bothNowDone && wasNotBothDone) {
+                sendLocalNotification('& you', "both done — time to see each other's dares 👀")
+              }
+            }
+            if (d.assigned_to === 'partner' && d.status === 'done' && prev?.status !== 'done' && d.created_by === user.id) {
+              sendLocalNotification('& you', `${partnerName} completed your dare! 🎉`)
+            }
+          }
+        })
+      }
+      prevDaresRef.current = data
+      daresFirstLoad = false
+      setDares(data)
+    })
+
     setIsLoading(false)
 
     return () => {
@@ -338,6 +389,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       strokesUnsub()
       stickersUnsub()
       commentsUnsub()
+      daresUnsub()
     }
   }, [user?.id, setItems, setRegions])
 
@@ -682,6 +734,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await deleteDoc(commentDoc(wall.id, id))
   }, [wall])
 
+  const addDare = useCallback(async (data: { title: string; description?: string | null; assigned_to: DareTarget; due_date?: string | null; trade_title?: string | null; trade_description?: string | null }): Promise<string> => {
+    if (!wall || !user) return ''
+    const id = uuidv4()
+    const newDare: Dare = {
+      id,
+      wall_id: wall.id,
+      created_by: user.id,
+      title: data.title,
+      description: data.description ?? null,
+      assigned_to: data.assigned_to,
+      status: 'pending',
+      due_date: data.due_date ?? null,
+      created_at: new Date().toISOString(),
+      positions: {},
+      ...(data.assigned_to === 'trade' ? {
+        trade_title: data.trade_title ?? null,
+        trade_description: data.trade_description ?? null,
+        trade_status: 'pending' as const,
+      } : {}),
+    }
+    await setDoc(dareDoc(wall.id, id), newDare)
+    return id
+  }, [wall, user])
+
+  const updateDare = useCallback(async (id: string, updates: Partial<Dare>) => {
+    if (!wall) return
+    await updateDoc(dareDoc(wall.id, id), updates as Record<string, unknown>)
+  }, [wall])
+
+  const deleteDare = useCallback(async (id: string) => {
+    if (!wall) return
+    await deleteDoc(dareDoc(wall.id, id))
+  }, [wall])
+
+  const completeDare = useCallback(async (id: string, asTradeCreator: boolean, photo?: string | null, note?: string | null) => {
+    if (!wall) return
+    const updates: Partial<Dare> = asTradeCreator
+      ? { trade_status: 'done', trade_completed_at: new Date().toISOString(), trade_completion_photo_url: photo ?? null, trade_completion_note: note ?? null }
+      : { status: 'done', completed_at: new Date().toISOString(), completion_photo_url: photo ?? null, completion_note: note ?? null }
+    await updateDoc(dareDoc(wall.id, id), updates as Record<string, unknown>)
+  }, [wall])
+
+  const updateDarePosition = useCallback(async (id: string, x: number, y: number) => {
+    if (!wall || !user) return
+    await updateDoc(dareDoc(wall.id, id), { [`positions.${user.id}`]: { x, y } })
+  }, [wall, user])
+
+  const setDareReaction = useCallback(async (id: string, asCreator: boolean, emoji: string) => {
+    if (!wall) return
+    const field = asCreator ? 'creator_reaction' : 'assignee_reaction'
+    await updateDoc(dareDoc(wall.id, id), { [field]: emoji })
+  }, [wall])
+
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -734,6 +839,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       notificationsEnabled, toggleNotifications,
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
       comments, addComment, deleteComment, uploadAudio,
+      dares, addDare, updateDare, deleteDare, completeDare, updateDarePosition, setDareReaction,
     }}>
       {children}
     </AppContext.Provider>
