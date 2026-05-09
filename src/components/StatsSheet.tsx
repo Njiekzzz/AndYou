@@ -151,7 +151,7 @@ export function StatsSheet({ open, onClose, onOpenProfile }: StatsSheetProps) {
                   fontFamily: 'var(--font-serif)', fontStyle: 'italic',
                   fontSize: 15, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.4,
                 }}>
-                  your story, so far.
+                  our story, so far.
                 </p>
 
                 {/* Empty / low-data state */}
@@ -203,10 +203,15 @@ export function StatsSheet({ open, onClose, onOpenProfile }: StatsSheetProps) {
                   <button
                     onClick={() => { onClose(); setTimeout(onOpenProfile, 200) }}
                     style={{
-                      fontSize: 13, color: 'var(--text-muted)',
+                      fontSize: 13, color: 'var(--color-teal)',
                       fontFamily: 'var(--font-sans)',
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      background: 'none', padding: 0,
+                      display: 'flex', alignItems: 'center', gap: 7,
+                      background: 'transparent',
+                      border: '1.5px solid var(--color-teal)',
+                      borderRadius: 10,
+                      padding: '10px 14px',
+                      width: '100%',
+                      justifyContent: 'center',
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
