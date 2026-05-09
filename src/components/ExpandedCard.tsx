@@ -297,11 +297,11 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
 
           {/* ── Creator strip ────────────────────────────────────────── */}
           <div style={{
-            height: 40, display: 'flex', alignItems: 'center',
+            height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0 16px', gap: 8,
             borderBottom: '1px solid var(--cream-dark)',
           }}>
-            {creator && (
+            {creator ? (
               <>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%',
@@ -312,10 +312,21 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
                 }}>
                   {creator.name.charAt(0).toUpperCase()}
                 </div>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>
                   {creator.name} proposed this
                 </span>
               </>
+            ) : (
+              <button
+                onClick={() => user && updateItem(liveItem.id, { created_by: user.id })}
+                style={{
+                  fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)',
+                  background: 'none', border: '1px dashed var(--border)', borderRadius: 6,
+                  padding: '3px 10px', cursor: 'pointer',
+                }}
+              >
+                claim as mine
+              </button>
             )}
           </div>
 
@@ -541,9 +552,19 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
             <div style={{ padding: '12px 16px 4px' }}>
               <button
                 onClick={() => { onClose(); onEdit(liveItem) }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, color: 'var(--amber)' }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
+                  padding: '8px 14px', borderRadius: 8,
+                  border: '1.5px solid var(--amber)',
+                  background: 'transparent', cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+                  color: 'var(--amber)',
+                }}
               >
-                edit this memory
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.5 1.5l3 3L4 14H1v-3L10.5 1.5z"/>
+                </svg>
+                edit
               </button>
             </div>
 
