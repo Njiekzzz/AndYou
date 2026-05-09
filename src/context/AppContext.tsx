@@ -291,7 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       strokesUnsub()
       stickersUnsub()
     }
-  }, [user, setItems, setRegions])
+  }, [user?.id, setItems, setRegions])
 
   const createWall = useCallback(async (name: string, color: string): Promise<string> => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()

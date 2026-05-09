@@ -662,7 +662,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     ? { left: 'calc(50% + 16px)', textAlign: 'left' as const }
                     : { right: 'calc(50% + 16px)', textAlign: 'right' as const }
                   ),
-                  maxWidth: 80,
+                  maxWidth: 120,
                   pointerEvents: 'none',
                 }}>
                   {hasDate && (
@@ -682,7 +682,10 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     fontSize: 14, fontWeight: 600,
                     color: 'var(--text-dark)',
                     lineHeight: 1.2, marginBottom: 3,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 4,
+                    WebkitBoxOrient: 'vertical',
                   }}>
                     {item.title}
                   </div>
