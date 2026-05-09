@@ -25,6 +25,7 @@ export interface Region {
   name: string
   order: number
   unlock_date: string | null
+  timer_enabled?: boolean
 }
 
 export interface BucketItem {

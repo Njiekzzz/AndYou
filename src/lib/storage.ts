@@ -94,3 +94,12 @@ export function addToSavedWalls(wall: SavedWall) {
 export function removeFromSavedWalls(wallId: string) {
   saveSavedWalls(loadSavedWalls().filter(w => w.wallId !== wallId))
 }
+
+const NOTIFICATIONS_KEY = 'andyou_notifications'
+export function saveNotificationsEnabled(v: boolean) {
+  localStorage.setItem(NOTIFICATIONS_KEY, v ? '1' : '0')
+}
+export function loadNotificationsEnabled(): boolean {
+  const raw = localStorage.getItem(NOTIFICATIONS_KEY)
+  return raw === null ? true : raw === '1'
+}

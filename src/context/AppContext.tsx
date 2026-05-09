@@ -11,6 +11,7 @@ import {
   saveGoogleUid, clearGoogleUid,
   clearUser, clearWallId, loadSavedWalls, addToSavedWalls, removeFromSavedWalls,
   savePolaroidStyle, loadPolaroidStyle,
+  saveNotificationsEnabled, loadNotificationsEnabled,
 } from '../lib/storage'
 import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
@@ -91,6 +92,8 @@ interface AppContextType {
   updateUserColor: (newColor: string) => Promise<void>
   polaroidStyle: PolaroidStyle
   setPolaroidStyle: (s: PolaroidStyle) => void
+  notificationsEnabled: boolean
+  toggleNotifications: () => void
   strokes: DrawingStroke[]
   stickers: WallSticker[]
   addStroke: (data: Omit<DrawingStroke, 'id' | 'userId'>) => Promise<void>
@@ -131,6 +134,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const googleUserRef = useRef<GoogleUser | null>(null)
   const [savedWalls, setSavedWalls] = useState<SavedWall[]>(loadSavedWalls())
   const [polaroidStyle, setPolaroidStyleState] = useState<PolaroidStyle>(loadPolaroidStyle())
+  const [notificationsEnabled, setNotificationsEnabled] = useState(loadNotificationsEnabled())
   const [strokes, setStrokes] = useState<DrawingStroke[]>([])
   const [stickers, setStickers] = useState<WallSticker[]>([])
 
@@ -178,6 +182,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPolaroidStyleState(s)
   }, [])
 
+  const toggleNotifications = useCallback(() => {
+    setNotificationsEnabled(prev => {
+      const next = !prev
+      saveNotificationsEnabled(next)
+      return next
+    })
+  }, [])
+
   const toggleTheme = useCallback(() => {
     setTheme(t => {
       const next = t === 'light' ? 'dark' : 'light'
@@ -219,26 +231,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
 
     // Real-time: items
+    let itemsFirstLoad = true
     const itemsUnsub = onSnapshot(
       query(itemsCol(wallId), orderBy('position')),
       snap => {
         const data = snap.docs.map(d => d.data() as BucketItem)
         setItems(data)
 
-        snap.docChanges().forEach(change => {
-          if (change.type === 'added' && change.doc.data().created_by !== user.id) {
-            sendLocalNotification('& you', `New item proposed: ${change.doc.data().title}`)
-          }
-          if (change.type === 'modified') {
-            const newData = change.doc.data() as BucketItem
-            if (newData.status === 'committed' && newData.created_by !== user.id) {
-              sendLocalNotification('& you', `${newData.title} is now committed!`)
+        if (!itemsFirstLoad && loadNotificationsEnabled()) {
+          snap.docChanges().forEach(change => {
+            if (change.type === 'added' && change.doc.data().created_by !== user.id) {
+              sendLocalNotification('& you', `New item proposed: ${change.doc.data().title}`)
             }
-            if (newData.real_image_url && newData.created_by !== user.id) {
-              sendLocalNotification('& you', `A memory was added to: ${newData.title}`)
+            if (change.type === 'modified') {
+              const newData = change.doc.data() as BucketItem
+              if (newData.status === 'committed' && newData.created_by !== user.id) {
+                sendLocalNotification('& you', `${newData.title} is now committed!`)
+              }
+              if (newData.real_image_url && newData.created_by !== user.id) {
+                sendLocalNotification('& you', `A memory was added to: ${newData.title}`)
+              }
             }
-          }
-        })
+          })
+        }
+        itemsFirstLoad = false
       }
     )
 
@@ -251,6 +267,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
 
     // Real-time: reactions
+    let reactionsFirstLoad = true
     const reactionsUnsub = onSnapshot(
       reactionsCol(wallId),
       snap => {
@@ -262,14 +279,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })
         setReactions(grouped)
 
-        snap.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const r = change.doc.data() as Reaction
-            if (r.heart && r.user_id !== user.id) {
-              sendLocalNotification('& you', 'Someone hearted an item!')
+        if (!reactionsFirstLoad && loadNotificationsEnabled()) {
+          snap.docChanges().forEach(change => {
+            if (change.type === 'added') {
+              const r = change.doc.data() as Reaction
+              if (r.heart && r.user_id !== user.id) {
+                sendLocalNotification('& you', 'Someone hearted an item!')
+              }
             }
-          }
-        })
+          })
+        }
+        reactionsFirstLoad = false
       }
     )
 
@@ -645,6 +665,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getItemReactions, getUserById, usersInWall,
       signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner, updateWallName, updateUserColor,
       polaroidStyle, setPolaroidStyle,
+      notificationsEnabled, toggleNotifications,
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
     }}>
       {children}

@@ -8,8 +8,31 @@ interface SettingsSheetProps {
   onClose: () => void
 }
 
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        width: 38, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+        background: on ? 'var(--color-teal)' : 'var(--border)',
+        position: 'relative', flexShrink: 0,
+        transition: 'background 0.2s',
+        padding: 0,
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 3,
+        left: on ? 19 : 3,
+        width: 16, height: 16, borderRadius: '50%',
+        background: '#fff', transition: 'left 0.2s',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+      }} />
+    </button>
+  )
+}
+
 export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
-  const { wall, regions, updateRegion, addRegion, polaroidStyle, setPolaroidStyle, updateWallName } = useApp()
+  const { wall, regions, updateRegion, addRegion, polaroidStyle, setPolaroidStyle, updateWallName, notificationsEnabled, toggleNotifications } = useApp()
   const [wallNameInput, setWallNameInput] = useState(wall?.name ?? '')
   const [wallNameSaving, setWallNameSaving] = useState(false)
   const [wallNameSaved, setWallNameSaved] = useState(false)
@@ -192,6 +215,17 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
                 </div>
               </div>
 
+              {/* Notifications */}
+              <div className="mb-6">
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                  notifications
+                </div>
+                <div className="flex items-center justify-between">
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>push notifications</span>
+                  <Toggle on={notificationsEnabled} onToggle={toggleNotifications} />
+                </div>
+              </div>
+
               {/* Regions */}
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
@@ -262,12 +296,23 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
                             </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => startEdit(region)}
-                          style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 8px' }}
-                        >
-                          edit
-                        </button>
+                        <div className="flex items-center gap-3">
+                          {region.unlock_date && (
+                            <div className="flex items-center gap-2">
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>timer</span>
+                              <Toggle
+                                on={!!region.timer_enabled}
+                                onToggle={() => updateRegion(region.id, { timer_enabled: !region.timer_enabled })}
+                              />
+                            </div>
+                          )}
+                          <button
+                            onClick={() => startEdit(region)}
+                            style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 8px' }}
+                          >
+                            edit
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

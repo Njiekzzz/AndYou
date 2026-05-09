@@ -2,6 +2,34 @@ import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import { BucketItem, Region, ItemTheme, ITEM_THEMES, PolaroidStyle } from '../types'
 
+// ─── Countdown timer ─────────────────────────────────────────────────────────
+function getCountdown(iso: string) {
+  const diff = new Date(iso).getTime() - Date.now()
+  if (diff <= 0) return null
+  const days  = Math.floor(diff / 86400000)
+  const hours = Math.floor((diff % 86400000) / 3600000)
+  const mins  = Math.floor((diff % 3600000) / 60000)
+  return { days, hours, mins }
+}
+
+function CountdownTimer({ date }: { date: string }) {
+  const [cd, setCd] = useState(getCountdown(date))
+  useEffect(() => {
+    const id = setInterval(() => setCd(getCountdown(date)), 60000)
+    return () => clearInterval(id)
+  }, [date])
+  if (!cd) return (
+    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-teal)', letterSpacing: '0.04em' }}>
+      it's time ✦
+    </span>
+  )
+  return (
+    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+      {cd.days > 0 && `${cd.days}d `}{cd.hours}h {cd.mins}m
+    </span>
+  )
+}
+
 // ─── Dimensions ──────────────────────────────────────────────────────────────
 const TOPBAR_H     = 64
 const BOTTOMNAV_H  = 72
@@ -410,30 +438,34 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                   top: zone.y,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  height: ZONE_PILL_H,
-                  display: 'flex', alignItems: 'center',
-                  padding: '0 20px', gap: 6,
+                  minHeight: ZONE_PILL_H,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '6px 20px',
                   background: 'var(--cream-dark)',
                   border: '1.5px solid var(--spine-color)',
                   borderRadius: 20,
-                  whiteSpace: 'nowrap',
                   zIndex: 3,
                 }}
               >
-                <span style={{
-                  fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-                  fontSize: 15, fontWeight: 400, color: 'var(--color-teal)',
-                }}>
-                  {region.name}
-                </span>
-                {region.unlock_date && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                   <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 300,
-                    color: 'var(--text-muted)', letterSpacing: '0.04em',
+                    fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+                    fontSize: 15, fontWeight: 400, color: 'var(--color-teal)',
                   }}>
-                    {new Date(region.unlock_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {region.name}
                   </span>
-                )}
+                  {region.unlock_date && region.timer_enabled && (
+                    <CountdownTimer date={region.unlock_date} />
+                  )}
+                  {region.unlock_date && !region.timer_enabled && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 300,
+                      color: 'var(--text-muted)', letterSpacing: '0.04em',
+                    }}>
+                      {new Date(region.unlock_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                </div>
               </div>
             )
           })}
