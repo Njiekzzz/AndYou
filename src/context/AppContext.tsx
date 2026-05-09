@@ -138,6 +138,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeView, setActiveView] = useState<'timeline' | 'list'>('timeline')
   const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null)
   const googleUserRef = useRef<GoogleUser | null>(null)
+  const usersInWallRef = useRef<User[]>([])
+  const sealedNoteSentRef = useRef<Set<string>>(new Set())
   const [savedWalls, setSavedWalls] = useState<SavedWall[]>(loadSavedWalls())
   const [polaroidStyle, setPolaroidStyleState] = useState<PolaroidStyle>(loadPolaroidStyle())
   const [notificationsEnabled, setNotificationsEnabled] = useState(loadNotificationsEnabled())
@@ -226,6 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const usersUnsub = onSnapshot(usersCol(wallId), snap => {
       const wallUsers = snap.docs.map(d => d.data() as User)
       setUsersInWall(wallUsers)
+      usersInWallRef.current = wallUsers
       const currentUser = loadUser()
       if (currentUser) {
         const others = wallUsers.filter(u => u.id !== currentUser.id)
@@ -256,7 +259,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 sendLocalNotification('& you', `${newData.title} is now committed!`)
               }
               if (newData.real_image_url && newData.created_by !== user.id) {
-                sendLocalNotification('& you', `A memory was added to: ${newData.title}`)
+                if (newData.sealed_note && !sealedNoteSentRef.current.has(newData.id)) {
+                  sealedNoteSentRef.current.add(newData.id)
+                  const authorName = usersInWallRef.current.find(u => u.id === newData.created_by)?.name ?? 'your partner'
+                  sendLocalNotification('& you', `${authorName} left you a note 💌 — see what they wrote about ${newData.title}`)
+                } else if (!newData.sealed_note) {
+                  sendLocalNotification('& you', `A memory was added to: ${newData.title}`)
+                }
               }
             }
           })

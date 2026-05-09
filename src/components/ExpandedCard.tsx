@@ -7,6 +7,26 @@ function formatSecs(s: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
+// Track which items have had their envelope animation played this session
+const revealedNotes = new Set<string>()
+
+function SealedEnvelope({ open }: { open: boolean }) {
+  return (
+    <svg width="44" height="32" viewBox="0 0 44 32" fill="none">
+      <rect x="1" y="10" width="42" height="21" rx="2" fill="var(--cream-dark)" stroke="var(--spine-color)" strokeWidth="1.2"/>
+      <path d="M1 31 L22 20 L43 31" stroke="var(--spine-color)" strokeWidth="0.8" opacity="0.4" fill="none"/>
+      <motion.path
+        animate={{ d: open ? 'M1 10 L22 1 L43 10 Z' : 'M1 10 L22 20 L43 10 Z' }}
+        fill="var(--cream-dark)"
+        stroke="var(--spine-color)"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
+      />
+    </svg>
+  )
+}
+
 interface ExpandedCardProps {
   item: BucketItem
   onClose: () => void
@@ -52,6 +72,12 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
 
   const myColor      = user?.avatar_color ?? '#d4900a'
   const partnerColor = partnerUser?.avatar_color ?? '#8a9abf'
+
+  const isRevealed = liveItem.status === 'done' && !!liveItem.real_image_url
+  const isAuthor = liveItem.created_by === user?.id
+  const hasNote = !!liveItem.sealed_note
+  const [envelopeOpen, setEnvelopeOpen] = useState(() => revealedNotes.has(liveItem.id))
+  const [noteModalOpen, setNoteModalOpen] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmDecline, setConfirmDecline] = useState(false)
@@ -120,6 +146,17 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
     setCommentSending(false)
   }
 
+  // Envelope reveal — one-shot per session
+  useEffect(() => {
+    if (isRevealed && hasNote && !revealedNotes.has(liveItem.id)) {
+      const t = setTimeout(() => {
+        setEnvelopeOpen(true)
+        revealedNotes.add(liveItem.id)
+      }, 600)
+      return () => clearTimeout(t)
+    }
+  }, [isRevealed, hasNote]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Detect when real photo first appears → trigger develop animation
   useEffect(() => {
     if (liveItem.real_image_url && !prevRealSrc.current) {
@@ -182,6 +219,44 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const isDevelopable   = !(liveItem.status === 'done' && liveItem.real_image_url)
 
   return (
+    <>
+    {/* Author peek modal */}
+    <AnimatePresence>
+      {noteModalOpen && (
+        <motion.div
+          key="note-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setNoteModalOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(20,16,8,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}
+        >
+          <motion.div
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.92, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'var(--card-bg)', borderRadius: 16, padding: '24px 20px', maxWidth: 300, width: '100%' }}
+          >
+            <div style={{ textAlign: 'center', fontSize: 28, marginBottom: 12 }}>🔒</div>
+            <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, color: 'var(--text-mid)', lineHeight: 1.65, marginBottom: 10, textAlign: 'center' }}>
+              "{liveItem.sealed_note}"
+            </p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, textAlign: 'center', lineHeight: 1.5 }}>
+              This note is sealed until you complete this memory together.
+            </p>
+            <button
+              onClick={() => setNoteModalOpen(false)}
+              style={{ width: '100%', padding: '10px', borderRadius: 8, background: 'var(--text-primary)', color: 'var(--bg)', fontSize: 13, fontFamily: 'var(--font-sans)' }}
+            >
+              close
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
     <AnimatePresence>
       <motion.div
         key="scrim"
@@ -498,7 +573,74 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
               </div>
             )}
 
+            {/* Sealed note — author peek (before reveal) */}
+            {hasNote && isAuthor && !isRevealed && (
+              <div style={{ padding: '0 16px 10px' }}>
+                <button
+                  onClick={() => setNoteModalOpen(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)',
+                    background: 'none', padding: '6px 10px', borderRadius: 8,
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <span>🔒</span>
+                  <span>you left a sealed note</span>
+                </button>
+              </div>
+            )}
+
             <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
+
+            {/* Sealed note — revealed (status done + photo) */}
+            {isRevealed && hasNote && (
+              <>
+                <div style={{
+                  padding: '16px 16px',
+                  background: 'rgba(212,144,10,0.04)',
+                  borderBottom: '1px solid var(--cream-dark)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+                    <SealedEnvelope open={envelopeOpen} />
+                  </div>
+                  <AnimatePresence>
+                    {envelopeOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <div style={{
+                            width: 22, height: 22, borderRadius: '50%',
+                            background: creator?.avatar_color ?? 'var(--border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, fontWeight: 600, color: '#fff', flexShrink: 0,
+                          }}>
+                            {creator?.name.charAt(0).toUpperCase() ?? '?'}
+                          </div>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-muted)' }}>
+                            {creator?.name ?? 'them'} left you a note
+                          </span>
+                        </div>
+                        <p style={{
+                          fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+                          fontSize: 15, color: 'var(--text-mid)', lineHeight: 1.65, margin: '0 0 6px',
+                        }}>
+                          "{liveItem.sealed_note}"
+                        </p>
+                        {liveItem.sealed_note_at && (
+                          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                            written {new Date(liveItem.sealed_note_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
 
             {/* Region + mood */}
             <div style={{ padding: '12px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -765,5 +907,6 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    </>
   )
 }

@@ -15,7 +15,7 @@ interface AddItemSheetProps {
 }
 
 export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
-  const { regions, addItem, updateItem, uploadImage, uploadAudio } = useApp()
+  const { regions, addItem, updateItem, uploadImage, uploadAudio, user } = useApp()
   const isEditMode = !!editItem
 
   const [title, setTitle] = useState('')
@@ -29,6 +29,9 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Sealed note state
+  const [sealedNote, setSealedNote] = useState('')
 
   // Voice note state
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null)
@@ -59,6 +62,7 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
       setImageFile(null)
       setVoiceBlob(null)
       setVoicePreviewUrl(editItem.voice_note_url ?? null)
+      setSealedNote(editItem.created_by === user?.id ? (editItem.sealed_note ?? '') : '')
     } else if (open && regions.length > 0 && !regionId) {
       setRegionId(regions[0].id)
     }
@@ -115,6 +119,7 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
     stopVoiceRecording()
     clearVoiceNote()
     setVoiceSecs(0)
+    setSealedNote('')
   }
 
   const handleClose = () => {
@@ -148,6 +153,10 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
           region_id: regionId,
           status,
           date: date.trim() || null,
+          ...(editItem.created_by === user?.id ? {
+            sealed_note: sealedNote.trim() || null,
+            sealed_note_at: sealedNote.trim() ? (editItem.sealed_note_at ?? new Date().toISOString()) : null,
+          } : {}),
         }
 
         // If a new image was selected, upload it
@@ -184,6 +193,8 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
           status,
           date: date.trim() || null,
           voice_note_url: null,
+          sealed_note: sealedNote.trim() || null,
+          sealed_note_at: sealedNote.trim() ? new Date().toISOString() : null,
         })
         handleClose()
 
@@ -373,6 +384,32 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
                   />
                 )}
               </div>
+
+              {/* Sealed note — only shown to the item creator */}
+              {(!isEditMode || editItem?.created_by === user?.id) && (
+                <div className="mb-3">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span>🔒</span> sealed note
+                    </label>
+                    <span style={{ fontSize: 11, color: sealedNote.length > 180 ? '#c94a3a' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {sealedNote.length}/200
+                    </span>
+                  </div>
+                  <textarea
+                    value={sealedNote}
+                    onChange={e => setSealedNote(e.target.value.slice(0, 200))}
+                    placeholder="only revealed when you do this together…"
+                    rows={2}
+                    style={{
+                      resize: 'none',
+                      background: 'rgba(180,130,50,0.08)',
+                      border: '1px solid rgba(180,130,50,0.22)',
+                      borderRadius: 10,
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Location — disabled when online */}
               <div className="mb-3" style={{ opacity: mood === 'online' ? 0.4 : 1 }}>

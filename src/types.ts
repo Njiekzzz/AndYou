@@ -46,6 +46,8 @@ export interface BucketItem {
   created_at: string
   date?: string | null
   voice_note_url?: string | null
+  sealed_note?: string | null
+  sealed_note_at?: string | null
 }
 
 export interface Comment {

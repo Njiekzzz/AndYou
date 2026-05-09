@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { ProfileSheet } from './ProfileSheet'
+import { StatsSheet } from './StatsSheet'
 
 interface TopBarProps {
   onOpenSettings?: () => void
@@ -9,6 +10,7 @@ interface TopBarProps {
 export function TopBar({ onOpenSettings }: TopBarProps) {
   const { user, partner, toggleTheme, theme } = useApp()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
 
   const initial = (name: string) => name.charAt(0).toUpperCase()
 
@@ -25,9 +27,9 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
         padding: '0 20px',
       }}>
 
-        {/* Left — avatar stack */}
+        {/* Left — avatar stack: opens stats when partner present, else profile */}
         <button
-          onClick={() => setProfileOpen(true)}
+          onClick={() => partner ? setStatsOpen(true) : setProfileOpen(true)}
           style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
         >
           <div style={{ position: 'relative', width: user && partner ? 54 : 36, height: 36 }}>
@@ -107,6 +109,11 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
       </div>
 
       <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <StatsSheet
+        open={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        onOpenProfile={() => { setStatsOpen(false); setProfileOpen(true) }}
+      />
     </>
   )
 }
