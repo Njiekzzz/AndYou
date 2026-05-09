@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { BucketItem, Region, ItemTheme, ITEM_THEMES } from '../types'
+import { BucketItem, Region, ItemTheme, ITEM_THEMES, PolaroidStyle } from '../types'
 
 // ─── Dimensions ──────────────────────────────────────────────────────────────
 const TOPBAR_H     = 64
@@ -224,7 +224,7 @@ function SprocketHoles({ side }: { side: 'left' | 'right' }) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
-  const { items, regions, reactions, user, getUserById } = useApp()
+  const { items, regions, reactions, user, getUserById, polaroidStyle } = useApp()
   const canvasRef   = useRef<HTMLDivElement>(null)
   const railRef     = useRef<HTMLDivElement>(null)
   const isDragging  = useRef(false)
@@ -422,7 +422,7 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
               >
                 <span style={{
                   fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-                  fontSize: 15, fontWeight: 400, color: 'var(--amber)',
+                  fontSize: 15, fontWeight: 400, color: 'var(--color-teal)',
                 }}>
                   {region.name}
                 </span>
@@ -519,6 +519,9 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     overflow: 'hidden',
                     cursor: 'pointer',
                     zIndex: 2,
+                    outline: polaroidStyle === 'border' && item.theme
+                      ? `2px solid ${ITEM_THEMES[item.theme as ItemTheme].borderColor}`
+                      : undefined,
                   }}
                 >
                   {/* Photo area */}
@@ -596,20 +599,6 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                       </div>
                     )}
 
-                    {/* Rating badge — bottom-right */}
-                    {displayRating > 0 && (
-                      <div style={{
-                        position: 'absolute', bottom: 6, right: 6,
-                        background: 'var(--amber)', color: '#fff',
-                        fontFamily: "'Courier New', monospace", fontSize: 9,
-                        padding: '1px 5px', borderRadius: 3,
-                        zIndex: 3, pointerEvents: 'none',
-                        lineHeight: 1.4,
-                      }}>
-                        {displayRating}
-                      </div>
-                    )}
-
                     {/* Done stamp */}
                     {isDone && (
                       <div style={{
@@ -661,8 +650,8 @@ export function TimelineCanvas({ onItemClick }: TimelineCanvasProps) {
                     )}
                   </div>
 
-                  {/* Themed border overlay */}
-                  {item.theme && <ThemeBorderSVG theme={item.theme as ItemTheme} />}
+                  {/* Themed border overlay — styled mode only */}
+                  {item.theme && polaroidStyle !== 'plain' && polaroidStyle !== 'border' && <ThemeBorderSVG theme={item.theme as ItemTheme} />}
                 </div>
 
                 {/* ── Text block — opposite side ────────────────────────── */}

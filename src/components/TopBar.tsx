@@ -65,7 +65,7 @@ export function TopBar({ onOpenSettings }: TopBarProps) {
           fontStyle: 'italic',
           fontSize: 22,
           fontWeight: 400,
-          color: 'var(--text-dark)',
+          color: 'var(--color-teal)',
           letterSpacing: '-0.01em',
           pointerEvents: 'none',
           whiteSpace: 'nowrap',

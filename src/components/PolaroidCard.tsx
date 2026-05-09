@@ -263,7 +263,7 @@ export function PolaroidCard({ item, isAbove, isLocked, onClick, highlight, hide
                 lineHeight: 1.3,
                 overflow: 'hidden',
                 display: '-webkit-box',
-                WebkitLineClamp: hasRatings ? 1 : 2,
+                WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 paddingRight: showDecoration ? 24 : 0,
               }}

@@ -51,6 +51,7 @@ export interface User {
   wall_id: string
   name: string
   avatar_color: string
+  google_uid?: string
 }
 
 export interface Reaction {

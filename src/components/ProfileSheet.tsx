@@ -16,7 +16,7 @@ export function ProfileSheet({ open, onClose }: ProfileSheetProps) {
     user, partner, wall, googleUser,
     signInWithGoogle, signOutGoogle,
     savedWalls, switchWall, leaveWall, kickPartner,
-    createWall, joinWall,
+    createWall, joinWall, updateUserColor,
   } = useApp()
 
   const [subView, setSubView] = useState<SubView>('main')
@@ -152,12 +152,33 @@ export function ProfileSheet({ open, onClose }: ProfileSheetProps) {
 
                   {/* You */}
                   {user && (
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-3">
                       <Avatar name={user.name} color={user.avatar_color} size={36} />
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{user.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>you</div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Your colour picker */}
+                  {user && (
+                    <div className="flex gap-2 mb-4" style={{ flexWrap: 'wrap' }}>
+                      {AVATAR_COLORS.map(c => (
+                        <button
+                          key={c}
+                          onClick={() => updateUserColor(c)}
+                          style={{
+                            width: 24, height: 24, borderRadius: '50%',
+                            background: c, padding: 0, cursor: 'pointer',
+                            border: c === user.avatar_color ? '2px solid var(--text-primary)' : '2px solid transparent',
+                            outline: c === user.avatar_color ? '1.5px solid var(--text-primary)' : 'none',
+                            outlineOffset: 2,
+                            transform: c === user.avatar_color ? 'scale(1.2)' : 'scale(1)',
+                            transition: 'transform 0.15s',
+                          }}
+                        />
+                      ))}
                     </div>
                   )}
 

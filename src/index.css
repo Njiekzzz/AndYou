@@ -67,6 +67,7 @@
   --color-bg-down:    #ede5d4;
   --color-sand:       #ede5d4;
   --color-teal:       #3a7a78;
+  --color-sage:       #7b9e7b;
 }
 
 /* ─── Dark mode ────────────────────────────────────────────────────────────── */
@@ -107,6 +108,8 @@
   --lock-overlay:   rgba(26,23,16,0.65);
   --avatar-border:  #26221a;
   --color-amber:    #d4900a;
+  --color-teal:     #5a9896;
+  --color-sage:     #7b9e7b;
   --color-ink:      #f0e8d8;
   --color-ink-soft: #b0a080;
   --color-ink-muted:#706050;

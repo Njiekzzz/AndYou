@@ -88,6 +88,7 @@ interface AppContextType {
   leaveWall: () => Promise<void>
   kickPartner: () => Promise<void>
   updateWallName: (name: string) => Promise<void>
+  updateUserColor: (newColor: string) => Promise<void>
   polaroidStyle: PolaroidStyle
   setPolaroidStyle: (s: PolaroidStyle) => void
   strokes: DrawingStroke[]
@@ -290,9 +291,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
     const wallId = uuidv4()
     const userId = uuidv4()
+    const gu = googleUserRef.current
 
     const defaultRegions = DEFAULT_REGIONS.map(r => ({ ...r, id: uuidv4(), wall_id: wallId }))
-    const newUser: User = { id: userId, wall_id: wallId, name, avatar_color: color }
+    const newUser: User = { id: userId, wall_id: wallId, name, avatar_color: color, ...(gu ? { google_uid: gu.uid } : {}) }
     const newWall: Wall = { id: wallId, code, created_at: new Date().toISOString() }
 
     saveUser(newUser)
@@ -318,7 +320,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addToSavedWalls({ wallId, wallCode: code, userId, name, color })
     setSavedWalls(loadSavedWalls())
 
-    const gu = googleUserRef.current
     if (gu) {
       await setDoc(doc(db, 'user_profiles', gu.uid), { uid: gu.uid, wallId, userId })
     }
@@ -327,16 +328,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [setRegions])
 
   const joinWall = useCallback(async (code: string, name: string, color: string) => {
-    // Find wall by code
     const wallsSnap = await getDocs(
       query(collection(db, 'walls'), where('code', '==', code.toUpperCase()))
     )
-    console.log('[joinWall] code queried:', code.toUpperCase(), '| docs found:', wallsSnap.size)
     if (wallsSnap.empty) throw new Error('Wall not found')
 
     const wallData = wallsSnap.docs[0].data() as Wall
-    const userId = uuidv4()
-    const newUser: User = { id: userId, wall_id: wallData.id, name, avatar_color: color }
+    const gu = googleUserRef.current
+
+    let userId: string
+    let newUser: User
+
+    if (gu) {
+      // Check if this Google account already has a user doc in this wall (handles leave-then-rejoin race)
+      const existingSnap = await getDocs(usersCol(wallData.id))
+      const existingDoc = existingSnap.docs.find(d => (d.data() as User).google_uid === gu.uid)
+      if (existingDoc) {
+        userId = existingDoc.id
+        newUser = { ...existingDoc.data() as User, name, avatar_color: color }
+      } else {
+        userId = uuidv4()
+        newUser = { id: userId, wall_id: wallData.id, name, avatar_color: color, google_uid: gu.uid }
+      }
+    } else {
+      userId = uuidv4()
+      newUser = { id: userId, wall_id: wallData.id, name, avatar_color: color }
+    }
 
     await setDoc(userDoc(wallData.id, userId), newUser)
 
@@ -350,7 +367,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addToSavedWalls({ wallId: wallData.id, wallCode: wallData.code, userId, name, color })
     setSavedWalls(loadSavedWalls())
 
-    const gu = googleUserRef.current
     if (gu) {
       await setDoc(doc(db, 'user_profiles', gu.uid), { uid: gu.uid, wallId: wallData.id, userId })
     }
@@ -468,14 +484,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const leaveWall = useCallback(async () => {
     if (!wall || !user) return
-    deleteDoc(userDoc(wall.id, user.id)).catch(() => {})
+    try { await deleteDoc(userDoc(wall.id, user.id)) } catch {}
     const gu = googleUserRef.current
     if (gu) {
-      getDoc(doc(db, 'user_profiles', gu.uid)).then(snap => {
+      try {
+        const snap = await getDoc(doc(db, 'user_profiles', gu.uid))
         if (snap.exists() && (snap.data() as UserProfile).wallId === wall.id) {
-          deleteDoc(doc(db, 'user_profiles', gu.uid)).catch(() => {})
+          await deleteDoc(doc(db, 'user_profiles', gu.uid))
         }
-      }).catch(() => {})
+      } catch {}
     }
     clearWallId()
     clearUser()
@@ -588,6 +605,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return usersInWall.find(u => u.id === id) ?? null
   }, [usersInWall])
 
+  const updateUserColor = useCallback(async (newColor: string) => {
+    if (!user || !wall) return
+    const updated: User = { ...user, avatar_color: newColor }
+    await updateDoc(userDoc(wall.id, user.id), { avatar_color: newColor })
+    saveUser(updated)
+    setUser(updated)
+    setUsersInWall(prev => prev.map(u => u.id === user.id ? updated : u))
+    addToSavedWalls({ wallId: wall.id, wallCode: wall.code ?? '', userId: user.id, name: user.name, color: newColor })
+    setSavedWalls(loadSavedWalls())
+  }, [user, wall])
+
   return (
     <AppContext.Provider value={{
       user, wall, partner, items, regions, reactions, theme, isLoading, activeView, googleUser, savedWalls,
@@ -595,7 +623,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       commitItem, completeItem, deleteItem, toggleHeart, setRating,
       updateRegion, addRegion, reorderRegions, uploadImage,
       getItemReactions, getUserById, usersInWall,
-      signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner, updateWallName,
+      signInWithGoogle, signOutGoogle, switchWall, leaveWall, kickPartner, updateWallName, updateUserColor,
       polaroidStyle, setPolaroidStyle,
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
     }}>
