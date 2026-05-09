@@ -45,6 +45,17 @@ export interface BucketItem {
   rotation_seed: number
   created_at: string
   date?: string | null
+  voice_note_url?: string | null
+}
+
+export interface Comment {
+  id: string
+  item_id: string
+  user_id: string
+  type: 'text' | 'voice'
+  text?: string
+  audio_url?: string
+  created_at: string
 }
 
 export interface User {

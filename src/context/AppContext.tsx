@@ -13,7 +13,7 @@ import {
   savePolaroidStyle, loadPolaroidStyle,
   saveNotificationsEnabled, loadNotificationsEnabled,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -100,6 +100,10 @@ interface AppContextType {
   removeStroke: (id: string) => Promise<void>
   addSticker: (data: Omit<WallSticker, 'id' | 'userId'>) => Promise<void>
   removeSticker: (id: string) => Promise<void>
+  comments: Record<string, Comment[]>
+  addComment: (itemId: string, type: 'text' | 'voice', content: string) => Promise<void>
+  deleteComment: (commentId: string) => Promise<void>
+  uploadAudio: (blob: Blob) => Promise<string>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -118,6 +122,8 @@ const strokesCol = (wallId: string) => collection(db, 'walls', wallId, 'strokes'
 const strokeDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'strokes', id)
 const stickersCol = (wallId: string) => collection(db, 'walls', wallId, 'stickers')
 const stickerDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'stickers', id)
+const commentsCol = (wallId: string) => collection(db, 'walls', wallId, 'comments')
+const commentDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'comments', id)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser())
@@ -137,6 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(loadNotificationsEnabled())
   const [strokes, setStrokes] = useState<DrawingStroke[]>([])
   const [stickers, setStickers] = useState<WallSticker[]>([])
+  const [comments, setComments] = useState<Record<string, Comment[]>>({})
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -301,6 +308,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStickers(snap.docs.map(d => d.data() as WallSticker))
     })
 
+    const commentsUnsub = onSnapshot(commentsCol(wallId), snap => {
+      const grouped: Record<string, Comment[]> = {}
+      snap.docs.forEach(d => {
+        const c = d.data() as Comment
+        if (!grouped[c.item_id]) grouped[c.item_id] = []
+        grouped[c.item_id].push(c)
+      })
+      Object.values(grouped).forEach(arr => arr.sort((a, b) => a.created_at.localeCompare(b.created_at)))
+      setComments(grouped)
+    })
+
     setIsLoading(false)
 
     return () => {
@@ -310,6 +328,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reactionsUnsub()
       strokesUnsub()
       stickersUnsub()
+      commentsUnsub()
     }
   }, [user?.id, setItems, setRegions])
 
@@ -616,6 +635,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await deleteDoc(stickerDoc(wall.id, id))
   }, [wall])
 
+  const uploadAudio = useCallback(async (blob: Blob): Promise<string> => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+    if (!cloudName || cloudName === 'undefined') throw new Error('Missing VITE_CLOUDINARY_CLOUD_NAME')
+    if (!uploadPreset || uploadPreset === 'undefined') throw new Error('Missing VITE_CLOUDINARY_UPLOAD_PRESET')
+    const formData = new FormData()
+    formData.append('file', blob, 'audio.webm')
+    formData.append('upload_preset', uploadPreset)
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.statusText)
+      throw new Error(`Cloudinary ${res.status}: ${body}`)
+    }
+    const data = await res.json()
+    return data.secure_url as string
+  }, [])
+
+  const addComment = useCallback(async (itemId: string, type: 'text' | 'voice', content: string) => {
+    if (!user || !wall) return
+    const newComment: Comment = {
+      id: uuidv4(),
+      item_id: itemId,
+      user_id: user.id,
+      type,
+      ...(type === 'text' ? { text: content } : { audio_url: content }),
+      created_at: new Date().toISOString(),
+    }
+    await setDoc(commentDoc(wall.id, newComment.id), newComment)
+  }, [user, wall])
+
+  const deleteComment = useCallback(async (id: string) => {
+    if (!wall) return
+    await deleteDoc(commentDoc(wall.id, id))
+  }, [wall])
+
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -667,6 +724,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       polaroidStyle, setPolaroidStyle,
       notificationsEnabled, toggleNotifications,
       strokes, stickers, addStroke, removeStroke, addSticker, removeSticker,
+      comments, addComment, deleteComment, uploadAudio,
     }}>
       {children}
     </AppContext.Provider>

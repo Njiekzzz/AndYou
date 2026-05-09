@@ -1,7 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BucketItem } from '../types'
 import { useApp } from '../context/AppContext'
+
+function formatSecs(s: number) {
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 
 interface ExpandedCardProps {
   item: BucketItem
@@ -33,7 +37,7 @@ function HeartRating({ rating, color, label }: { rating: number | null; color: s
 }
 
 export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
-  const { user, partner, getUserById, getItemReactions, deleteItem, setRating, regions, items, completeItem, commitItem, uploadImage, updateItem } = useApp()
+  const { user, partner, getUserById, getItemReactions, deleteItem, setRating, regions, items, completeItem, commitItem, uploadImage, updateItem, comments, addComment, deleteComment, uploadAudio } = useApp()
 
   const liveItem = items.find(i => i.id === item.id) ?? item
 
@@ -58,6 +62,63 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
   const [dateLabel, setDateLabel] = useState('')
   const prevRealSrc = useRef(liveItem.real_image_url)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Comments state
+  const [commentText, setCommentText] = useState('')
+  const [commentSending, setCommentSending] = useState(false)
+  const [commentRecording, setCommentRecording] = useState(false)
+  const [commentSecs, setCommentSecs] = useState(0)
+  const commentMrRef = useRef<MediaRecorder | null>(null)
+  const commentChunksRef = useRef<Blob[]>([])
+  const commentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const itemComments = comments[liveItem.id] ?? []
+
+  const stopCommentRecording = useCallback(() => {
+    commentMrRef.current?.stop()
+    setCommentRecording(false)
+    if (commentTimerRef.current) clearInterval(commentTimerRef.current)
+  }, [])
+
+  const startCommentRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      commentChunksRef.current = []
+      mr.ondataavailable = e => { if (e.data.size > 0) commentChunksRef.current.push(e.data) }
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(commentChunksRef.current, { type: 'audio/webm' })
+        setCommentSending(true)
+        try {
+          const url = await uploadAudio(blob)
+          await addComment(liveItem.id, 'voice', url)
+        } catch (err) {
+          console.warn('Voice comment upload failed:', err)
+        }
+        setCommentSending(false)
+      }
+      mr.start()
+      commentMrRef.current = mr
+      setCommentRecording(true)
+      setCommentSecs(0)
+      commentTimerRef.current = setInterval(() => setCommentSecs(s => s + 1), 1000)
+    } catch {
+      // mic denied
+    }
+  }
+
+  const handleSendComment = async () => {
+    if (!commentText.trim() || commentSending) return
+    setCommentSending(true)
+    try {
+      await addComment(liveItem.id, 'text', commentText.trim())
+      setCommentText('')
+    } catch (err) {
+      console.warn('Comment send failed:', err)
+    }
+    setCommentSending(false)
+  }
 
   // Detect when real photo first appears → trigger develop animation
   useEffect(() => {
@@ -425,6 +486,18 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
               </div>
             )}
 
+            {/* Voice note */}
+            {liveItem.voice_note_url && (
+              <div style={{ padding: '0 16px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="12" height="15" viewBox="0 0 11 14" fill="none" style={{ flexShrink: 0, color: 'var(--text-muted)' }}>
+                  <rect x="3" y="0.5" width="5" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M1 7.5c0 2.5 2 4.5 4.5 4.5S10 10 10 7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                  <path d="M5.5 12v1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                <audio src={liveItem.voice_note_url} controls style={{ height: 28, flex: 1, minWidth: 0 }} />
+              </div>
+            )}
+
             <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
 
             {/* Region + mood */}
@@ -481,6 +554,107 @@ export function ExpandedCard({ item, onClose, onEdit }: ExpandedCardProps) {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />
+
+            {/* ── Notes / Comments ─────────────────────────────────── */}
+            <div style={{ padding: '14px 16px' }}>
+              {itemComments.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  {itemComments.map(comment => {
+                    const commenter = getUserById(comment.user_id)
+                    const isMe = comment.user_id === user?.id
+                    return (
+                      <div key={comment.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                        <div style={{
+                          width: 22, height: 22, borderRadius: '50%',
+                          background: commenter?.avatar_color ?? 'var(--border)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, fontWeight: 600, color: '#fff', flexShrink: 0,
+                          marginTop: 2,
+                        }}>
+                          {commenter?.name.charAt(0).toUpperCase() ?? '?'}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {comment.type === 'text' ? (
+                            <div style={{
+                              background: 'var(--cream-dark)', borderRadius: '0 10px 10px 10px',
+                              padding: '6px 10px', fontSize: 13,
+                              color: 'var(--text-mid)', fontFamily: 'var(--font-sans)', lineHeight: 1.4,
+                            }}>
+                              {comment.text}
+                            </div>
+                          ) : (
+                            <audio src={comment.audio_url} controls style={{ height: 28, width: '100%' }} />
+                          )}
+                        </div>
+                        {isMe && (
+                          <button
+                            onClick={() => deleteComment(comment.id)}
+                            style={{ fontSize: 16, color: 'var(--text-muted)', lineHeight: 1, padding: '2px 2px', flexShrink: 0, marginTop: 1 }}
+                          >×</button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Input row */}
+              {commentRecording ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--cream-dark)', borderRadius: 8 }}>
+                  <motion.div
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    style={{ width: 8, height: 8, borderRadius: '50%', background: '#c94a3a', flexShrink: 0 }}
+                  />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>
+                    {formatSecs(commentSecs)}
+                  </span>
+                  <button
+                    onClick={stopCommentRecording}
+                    style={{ fontSize: 12, color: 'var(--text-primary)', padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card-bg)' }}
+                  >
+                    send
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendComment()}
+                    placeholder="add a note…"
+                    style={{ flex: 1, fontSize: 13, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}
+                  />
+                  {commentText.trim() ? (
+                    <button
+                      onClick={handleSendComment}
+                      disabled={commentSending}
+                      style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--text-primary)', color: 'var(--bg)', fontSize: 12, fontFamily: 'var(--font-sans)', opacity: commentSending ? 0.5 : 1 }}
+                    >
+                      {commentSending ? '…' : 'send'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={startCommentRecording}
+                      title="voice note"
+                      style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexShrink: 0 }}
+                    >
+                      <svg width="11" height="14" viewBox="0 0 11 14" fill="none">
+                        <rect x="3" y="0.5" width="5" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M1 7.5c0 2.5 2 4.5 4.5 4.5S10 10 10 7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        <path d="M5.5 12v1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
+              {commentSending && !commentRecording && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>uploading…</div>
+              )}
             </div>
 
             <div style={{ height: 1, background: 'var(--cream-dark)', margin: '0 16px' }} />

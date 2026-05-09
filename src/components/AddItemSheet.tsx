@@ -4,6 +4,10 @@ import { useApp } from '../context/AppContext'
 import { BucketItem, ItemMood, ItemStatus, ItemTheme, ITEM_THEMES } from '../types'
 import { requestNotificationPermission } from '../lib/notifications'
 
+function formatSecs(s: number) {
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
 interface AddItemSheetProps {
   open: boolean
   onClose: () => void
@@ -11,7 +15,7 @@ interface AddItemSheetProps {
 }
 
 export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
-  const { regions, addItem, updateItem, uploadImage } = useApp()
+  const { regions, addItem, updateItem, uploadImage, uploadAudio } = useApp()
   const isEditMode = !!editItem
 
   const [title, setTitle] = useState('')
@@ -25,6 +29,16 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Voice note state
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null)
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null)
+  const [voiceRecording, setVoiceRecording] = useState(false)
+  const [voiceSecs, setVoiceSecs] = useState(0)
+  const voiceMrRef = useRef<MediaRecorder | null>(null)
+  const voiceChunksRef = useRef<Blob[]>([])
+  const voiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const handleTouchStart = useRef(0)
   const onHandleTouchStart = useCallback((e: React.TouchEvent) => { handleTouchStart.current = e.touches[0].clientY }, [])
@@ -43,10 +57,48 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
       setDate(editItem.date ?? '')
       setImagePreview(editItem.image_url ?? null)
       setImageFile(null)
+      setVoiceBlob(null)
+      setVoicePreviewUrl(editItem.voice_note_url ?? null)
     } else if (open && regions.length > 0 && !regionId) {
       setRegionId(regions[0].id)
     }
   }, [open, editItem]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stopVoiceRecording = useCallback(() => {
+    voiceMrRef.current?.stop()
+    setVoiceRecording(false)
+    if (voiceTimerRef.current) clearInterval(voiceTimerRef.current)
+  }, [])
+
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      voiceChunksRef.current = []
+      mr.ondataavailable = e => { if (e.data.size > 0) voiceChunksRef.current.push(e.data) }
+      mr.onstop = () => {
+        const blob = new Blob(voiceChunksRef.current, { type: 'audio/webm' })
+        if (voicePreviewUrl && !voicePreviewUrl.startsWith('http')) URL.revokeObjectURL(voicePreviewUrl)
+        setVoiceBlob(blob)
+        setVoicePreviewUrl(URL.createObjectURL(blob))
+        setDescription('')
+        stream.getTracks().forEach(t => t.stop())
+      }
+      mr.start()
+      voiceMrRef.current = mr
+      setVoiceRecording(true)
+      setVoiceSecs(0)
+      voiceTimerRef.current = setInterval(() => setVoiceSecs(s => s + 1), 1000)
+    } catch {
+      // microphone not available or denied
+    }
+  }
+
+  const clearVoiceNote = () => {
+    if (voicePreviewUrl && !voicePreviewUrl.startsWith('http')) URL.revokeObjectURL(voicePreviewUrl)
+    setVoiceBlob(null)
+    setVoicePreviewUrl(null)
+  }
 
   const reset = () => {
     setTitle('')
@@ -60,6 +112,9 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
     setImagePreview(null)
     setRegionId('')
     setSaving(false)
+    stopVoiceRecording()
+    clearVoiceNote()
+    setVoiceSecs(0)
   }
 
   const handleClose = () => {
@@ -108,6 +163,12 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
           await updateItem(editItem.id, updates)
           handleClose()
         }
+
+        if (voiceBlob) {
+          uploadAudio(voiceBlob)
+            .then(url => updateItem(editItem.id, { voice_note_url: url }))
+            .catch(err => console.warn('Voice note upload failed:', err))
+        }
       } else {
         // Add new item
         const blobUrl = imageFile ? URL.createObjectURL(imageFile) : null
@@ -122,6 +183,7 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
           region_id: regionId,
           status,
           date: date.trim() || null,
+          voice_note_url: null,
         })
         handleClose()
 
@@ -129,6 +191,12 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
           uploadImage(imageFile)
             .then(realUrl => updateItem(itemId, { image_url: realUrl }))
             .catch(err => console.warn('Background image upload failed:', err))
+        }
+
+        if (voiceBlob && itemId) {
+          uploadAudio(voiceBlob)
+            .then(url => updateItem(itemId, { voice_note_url: url }))
+            .catch(err => console.warn('Voice note upload failed:', err))
         }
       }
     } catch (err) {
@@ -252,14 +320,58 @@ export function AddItemSheet({ open, onClose, editItem }: AddItemSheetProps) {
 
               {/* Description */}
               <div className="mb-3">
-                <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>description</label>
-                <textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Add some details…"
-                  rows={2}
-                  style={{ resize: 'none' }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>description</label>
+                  {!voiceBlob && !voiceRecording && (
+                    <button
+                      onClick={startVoiceRecording}
+                      title="record voice note"
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 6, border: '1px solid var(--border)' }}
+                    >
+                      <svg width="11" height="14" viewBox="0 0 11 14" fill="none">
+                        <rect x="3" y="0.5" width="5" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M1 7.5c0 2.5 2 4.5 4.5 4.5S10 10 10 7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        <path d="M5.5 12v1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      voice
+                    </button>
+                  )}
+                </div>
+
+                {voiceRecording ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--border)', borderRadius: 8 }}>
+                    <motion.div
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 1.2, repeat: Infinity }}
+                      style={{ width: 9, height: 9, borderRadius: '50%', background: '#c94a3a', flexShrink: 0 }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', flex: 1 }}>
+                      {formatSecs(voiceSecs)}
+                    </span>
+                    <button
+                      onClick={stopVoiceRecording}
+                      style={{ fontSize: 12, color: 'var(--text-primary)', padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--sheet-bg)' }}
+                    >
+                      stop
+                    </button>
+                  </div>
+                ) : voicePreviewUrl ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--border)', borderRadius: 8 }}>
+                    <audio src={voicePreviewUrl} controls style={{ height: 30, flex: 1, minWidth: 0 }} />
+                    <button
+                      onClick={clearVoiceNote}
+                      style={{ fontSize: 18, color: 'var(--text-muted)', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
+                    >×</button>
+                  </div>
+                ) : (
+                  <textarea
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Add some details…"
+                    rows={2}
+                    style={{ resize: 'none' }}
+                  />
+                )}
               </div>
 
               {/* Location — disabled when online */}
