@@ -12,9 +12,11 @@ interface DareCardProps {
   y: number
   creator: User | null
   isLifted: boolean
+  onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void
+  onTouchStart?: (e: React.TouchEvent<HTMLDivElement>) => void
 }
 
-export function DareCard({ dare, x, y, creator, isLifted }: DareCardProps) {
+export function DareCard({ dare, x, y, creator, isLifted, onMouseDown, onTouchStart }: DareCardProps) {
   const rotation = getDareRotation(dare.id)
   const hasImage = !!dare.completion_photo_url
   const badgeType = dare.assigned_to === 'trade' ? 'trade' : 'challenge'
@@ -26,6 +28,11 @@ export function DareCard({ dare, x, y, creator, isLifted }: DareCardProps) {
   return (
     <div
       data-dare-id={dare.id}
+      draggable={false}
+      onDragStart={e => e.preventDefault()}
+      onContextMenu={e => e.preventDefault()}
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
       style={{
         position: 'absolute',
         left: x,
@@ -44,6 +51,9 @@ export function DareCard({ dare, x, y, creator, isLifted }: DareCardProps) {
         userSelect: 'none',
         WebkitUserSelect: 'none',
         touchAction: 'none',
+        // @ts-ignore
+        WebkitUserDrag: 'none',
+        WebkitTouchCallout: 'none',
       }}
     >
       {/* Photo area */}
@@ -58,8 +68,15 @@ export function DareCard({ dare, x, y, creator, isLifted }: DareCardProps) {
           <img
             src={dare.completion_photo_url!}
             alt={dare.title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             draggable={false}
+            onDragStart={e => e.preventDefault()}
+            onContextMenu={e => e.preventDefault()}
+            style={{
+              width: '100%', height: '100%', objectFit: 'cover',
+              // @ts-ignore
+              WebkitUserDrag: 'none',
+              WebkitTouchCallout: 'none',
+            }}
           />
         ) : (
           <>

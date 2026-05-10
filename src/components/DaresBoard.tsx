@@ -6,11 +6,10 @@ import { DareDetailSheet } from './DareDetailSheet'
 import { TradeReveal } from './TradeReveal'
 import { ClashPanel } from './ClashPanel'
 
-// suppress unused import warning — getDareRotation is exported from DareCard for external use
 void _getDareRotation
 
-const CANVAS_WIDTH = 1400
-const CANVAS_HEIGHT = 1000
+const CANVAS_WIDTH = 2400
+const CANVAS_HEIGHT = 2000
 
 interface DaresBoardProps {
   onAddDare: (editId?: string) => void
@@ -30,12 +29,11 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [scale, setScale] = useState(1)
   const [localPos, setLocalPos] = useState<Record<string, { x: number; y: number }>>({})
+  // Unified lifted state: dare id for cards, "label-<id>" for labels
   const [liftedCardId, setLiftedCardId] = useState<string | null>(null)
-  const [liftedLabelId, setLiftedLabelId] = useState<string | null>(null)
   const [localLabelPos, setLocalLabelPos] = useState<Record<string, { x: number; y: number }>>({})
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
   const [editingLabelText, setEditingLabelText] = useState('')
-  const [showDeleteLabelId, setShowDeleteLabelId] = useState<string | null>(null)
   const [selectedDare, setSelectedDare] = useState<Dare | null>(null)
   const [revealDare, setRevealDare] = useState<Dare | null>(null)
   const [clashPanelOpen, setClashPanelOpen] = useState(false)
@@ -46,14 +44,11 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const lastPinchDist = useRef<number | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const halfPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const halfPressedRef = useRef(false)
+  // Stores prefixed id: "label-<id>" for labels, bare id for cards
   const longPressTargetId = useRef<string | null>(null)
-  const longPressTargetType = useRef<'card' | 'label' | null>(null)
   const pressStartPos = useRef({ x: 0, y: 0 })
   const cardDragStart = useRef({ x: 0, y: 0, cardX: 0, cardY: 0 })
   const liftedCardIdRef = useRef<string | null>(null)
-  const liftedLabelIdRef = useRef<string | null>(null)
   const localPosRef = useRef<Record<string, { x: number; y: number }>>({})
   const localLabelPosRef = useRef<Record<string, { x: number; y: number }>>({})
   const panRef = useRef({ x: 0, y: 0 })
@@ -69,7 +64,6 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
   const updateBoardLabelRef = useRef(updateBoardLabel)
   const deleteBoardLabelRef = useRef(deleteBoardLabel)
   const addBoardLabelRef = useRef(addBoardLabel)
-  const showDeleteLabelIdRef = useRef<string | null>(null)
 
   // Sync refs
   useEffect(() => { visibleDaresRef.current = visibleDares }, [visibleDares])
@@ -79,7 +73,6 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
   useEffect(() => { updateBoardLabelRef.current = updateBoardLabel }, [updateBoardLabel])
   useEffect(() => { deleteBoardLabelRef.current = deleteBoardLabel }, [deleteBoardLabel])
   useEffect(() => { addBoardLabelRef.current = addBoardLabel }, [addBoardLabel])
-  useEffect(() => { showDeleteLabelIdRef.current = showDeleteLabelId }, [showDeleteLabelId])
 
   // ── Clamp pan to canvas bounds ──────────────────────────────────────────
   const clampPan = useCallback((x: number, y: number, s: number) => {
@@ -147,7 +140,7 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
   useEffect(() => {
     const updates: Record<string, { x: number; y: number }> = {}
     boardLabels.forEach(label => {
-      if (liftedLabelIdRef.current !== label.id) {
+      if (liftedCardIdRef.current !== `label-${label.id}`) {
         const cur = localLabelPosRef.current[label.id]
         if (!cur || cur.x !== label.x || cur.y !== label.y) {
           updates[label.id] = { x: label.x, y: label.y }
@@ -184,45 +177,33 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
     }
   }, [editingLabelId])
 
-  // ── Long press helpers ──────────────────────────────────────────────────
-  const cancelAllLongPress = useCallback(() => {
+  // ── Long press (500ms, unified for cards and labels) ────────────────────
+  const cancelLongPress = useCallback(() => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
-    if (halfPressTimer.current) { clearTimeout(halfPressTimer.current); halfPressTimer.current = null }
-    halfPressedRef.current = false
     longPressTargetId.current = null
-    longPressTargetType.current = null
   }, [])
 
-  const startCardLongPress = useCallback((dareId: string, x: number, y: number) => {
+  // prefixedId: "label-<id>" for labels, bare dare id for cards
+  const startLongPress = useCallback((prefixedId: string, x: number, y: number) => {
     pressStartPos.current = { x, y }
-    longPressTargetId.current = dareId
-    longPressTargetType.current = 'card'
+    longPressTargetId.current = prefixedId
     longPressTimer.current = setTimeout(() => {
-      const pos = localPosRef.current[dareId] ?? { x: 0, y: 0 }
-      cardDragStart.current = { x: pressStartPos.current.x, y: pressStartPos.current.y, cardX: pos.x, cardY: pos.y }
-      liftedCardIdRef.current = dareId
-      setLiftedCardId(dareId)
+      longPressTimer.current = null  // clear self so resolvePressEnd knows timer fired
+      const isLabel = prefixedId.startsWith('label-')
+      if (isLabel) {
+        const labelId = prefixedId.slice(6)
+        const label = boardLabelsRef.current.find(l => l.id === labelId)
+        if (!label) return
+        const lpos = localLabelPosRef.current[labelId] ?? { x: label.x, y: label.y }
+        cardDragStart.current = { x: pressStartPos.current.x, y: pressStartPos.current.y, cardX: lpos.x, cardY: lpos.y }
+      } else {
+        const pos = localPosRef.current[prefixedId] ?? { x: 0, y: 0 }
+        cardDragStart.current = { x: pressStartPos.current.x, y: pressStartPos.current.y, cardX: pos.x, cardY: pos.y }
+      }
+      liftedCardIdRef.current = prefixedId
+      setLiftedCardId(prefixedId)
       navigator.vibrate && navigator.vibrate(18)
-    }, 1000)
-  }, [])
-
-  const startLabelLongPress = useCallback((labelId: string, x: number, y: number) => {
-    pressStartPos.current = { x, y }
-    longPressTargetId.current = labelId
-    longPressTargetType.current = 'label'
-    halfPressedRef.current = false
-    halfPressTimer.current = setTimeout(() => { halfPressedRef.current = true }, 500)
-    longPressTimer.current = setTimeout(() => {
-      if (halfPressTimer.current) { clearTimeout(halfPressTimer.current); halfPressTimer.current = null }
-      halfPressedRef.current = false
-      const label = boardLabelsRef.current.find(l => l.id === labelId)
-      if (!label) return
-      const lpos = localLabelPosRef.current[labelId] ?? { x: label.x, y: label.y }
-      cardDragStart.current = { x: pressStartPos.current.x, y: pressStartPos.current.y, cardX: lpos.x, cardY: lpos.y }
-      liftedLabelIdRef.current = labelId
-      setLiftedLabelId(labelId)
-      navigator.vibrate && navigator.vibrate(18)
-    }, 1000)
+    }, 500)
   }, [])
 
   // ── Save helpers ────────────────────────────────────────────────────────
@@ -235,7 +216,7 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
     updateBoardLabelRef.current(id, { x, y })
   }
 
-  // ── Label tap (double-tap → edit) ────────────────────────────────────────
+  // ── Label tap (double-tap → edit) ───────────────────────────────────────
   const handleLabelTap = useCallback((labelId: string) => {
     const now = Date.now()
     if (lastTapLabelIdRef.current === labelId && now - lastTapTimeRef.current < 350) {
@@ -275,98 +256,71 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
     }
   }, [])
 
+  // ── Drop lifted item helper ─────────────────────────────────────────────
+  const dropLifted = useCallback(() => {
+    const id = liftedCardIdRef.current
+    if (!id) return
+    liftedCardIdRef.current = null
+    setLiftedCardId(null)
+    if (id.startsWith('label-')) {
+      const labelId = id.slice(6)
+      const pos = localLabelPosRef.current[labelId]
+      if (pos) saveLabelPos(labelId, pos.x, pos.y)
+    } else {
+      const pos = localPosRef.current[id]
+      if (pos) scheduleCardSave(id, pos.x, pos.y)
+    }
+  }, [])
+
   // ── Shared tap/drop resolution ──────────────────────────────────────────
   const resolvePressEnd = useCallback(() => {
     if (longPressTimer.current) {
+      // Timer still pending → user released before 500ms → it's a tap
       const targetId = longPressTargetId.current
-      const targetType = longPressTargetType.current
-      const wasHalfPressed = halfPressedRef.current
-      cancelAllLongPress()
-
-      if (targetType === 'card' && targetId) {
-        const dare = visibleDaresRef.current.find(d => d.id === targetId)
-        if (dare) setSelectedDare(dare)
-      } else if (targetType === 'label' && targetId) {
-        if (wasHalfPressed) {
-          setShowDeleteLabelId(targetId)
-          showDeleteLabelIdRef.current = targetId
-        } else if (showDeleteLabelIdRef.current === targetId) {
-          setShowDeleteLabelId(null)
-          showDeleteLabelIdRef.current = null
+      cancelLongPress()
+      if (targetId) {
+        if (targetId.startsWith('label-')) {
+          handleLabelTap(targetId.slice(6))
         } else {
-          handleLabelTap(targetId)
+          const dare = visibleDaresRef.current.find(d => d.id === targetId)
+          if (dare) setSelectedDare(dare)
         }
       }
       return
     }
+    dropLifted()
+  }, [cancelLongPress, handleLabelTap, dropLifted])
 
-    if (liftedCardIdRef.current) {
-      const id = liftedCardIdRef.current
-      const pos = localPosRef.current[id]
-      liftedCardIdRef.current = null
-      setLiftedCardId(null)
-      if (pos) scheduleCardSave(id, pos.x, pos.y)
-      return
-    }
-
-    if (liftedLabelIdRef.current) {
-      const id = liftedLabelIdRef.current
-      const pos = localLabelPosRef.current[id]
-      liftedLabelIdRef.current = null
-      setLiftedLabelId(null)
-      if (pos) saveLabelPos(id, pos.x, pos.y)
-    }
-  }, [cancelAllLongPress, handleLabelTap])
-
-  // ── Mouse handlers ──────────────────────────────────────────────────────
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as Element).closest('[data-label-delete]')) return
-
-    const cardEl = (e.target as Element).closest('[data-dare-id]') as HTMLElement | null
-    const labelEl = (e.target as Element).closest('[data-label-id]') as HTMLElement | null
-
-    if (showDeleteLabelIdRef.current && !labelEl) {
-      setShowDeleteLabelId(null)
-      showDeleteLabelIdRef.current = null
-    }
-
-    if (cardEl) { startCardLongPress(cardEl.dataset.dareId!, e.clientX, e.clientY); return }
-    if (labelEl) { startLabelLongPress(labelEl.dataset.labelId!, e.clientX, e.clientY); return }
-    if (!liftedCardIdRef.current && !liftedLabelIdRef.current) {
-      isDragging.current = true
-      dragStart.current = { x: e.clientX, y: e.clientY, panX: panRef.current.x, panY: panRef.current.y }
-    }
-  }, [startCardLongPress, startLabelLongPress])
-
+  // ── Movement handler (shared mouse + touch) ─────────────────────────────
   const handleMove = useCallback((cx: number, cy: number) => {
     if (longPressTimer.current) {
       const moved = Math.hypot(cx - pressStartPos.current.x, cy - pressStartPos.current.y)
       if (moved > 4) {
-        cancelAllLongPress()
+        cancelLongPress()
         isDragging.current = true
         dragStart.current = { x: pressStartPos.current.x, y: pressStartPos.current.y, panX: panRef.current.x, panY: panRef.current.y }
       }
     }
 
     if (liftedCardIdRef.current) {
-      const s = scaleRef.current
       const id = liftedCardIdRef.current
-      const nx = Math.min(Math.max(cardDragStart.current.cardX + (cx - cardDragStart.current.x) / s, 0), CANVAS_WIDTH - 140)
-      const ny = Math.min(Math.max(cardDragStart.current.cardY + (cy - cardDragStart.current.y) / s, 0), CANVAS_HEIGHT - 160)
-      const next = { ...localPosRef.current, [id]: { x: nx, y: ny } }
-      localPosRef.current = next
-      setLocalPos(next)
-      return
-    }
-
-    if (liftedLabelIdRef.current) {
-      const s = scaleRef.current
-      const id = liftedLabelIdRef.current
-      const nx = Math.min(Math.max(cardDragStart.current.cardX + (cx - cardDragStart.current.x) / s, 0), CANVAS_WIDTH - 20)
-      const ny = Math.min(Math.max(cardDragStart.current.cardY + (cy - cardDragStart.current.y) / s, 0), CANVAS_HEIGHT - 40)
-      const next = { ...localLabelPosRef.current, [id]: { x: nx, y: ny } }
-      localLabelPosRef.current = next
-      setLocalLabelPos(next)
+      // Drag formula: raw screen delta, no scale division (intentional)
+      const dx = cx - cardDragStart.current.x
+      const dy = cy - cardDragStart.current.y
+      if (id.startsWith('label-')) {
+        const labelId = id.slice(6)
+        const nx = Math.min(Math.max(cardDragStart.current.cardX + dx, 0), CANVAS_WIDTH - 20)
+        const ny = Math.min(Math.max(cardDragStart.current.cardY + dy, 0), CANVAS_HEIGHT - 40)
+        const next = { ...localLabelPosRef.current, [labelId]: { x: nx, y: ny } }
+        localLabelPosRef.current = next
+        setLocalLabelPos(next)
+      } else {
+        const nx = Math.min(Math.max(cardDragStart.current.cardX + dx, 0), CANVAS_WIDTH - 140)
+        const ny = Math.min(Math.max(cardDragStart.current.cardY + dy, 0), CANVAS_HEIGHT - 160)
+        const next = { ...localPosRef.current, [id]: { x: nx, y: ny } }
+        localPosRef.current = next
+        setLocalPos(next)
+      }
       return
     }
 
@@ -379,68 +333,49 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
       panRef.current = np
       setPan(np)
     }
-  }, [cancelAllLongPress, clampPan])
+  }, [cancelLongPress, clampPan])
+
+  // ── Mouse handlers ──────────────────────────────────────────────────────
+  // Board mousedown only fires on empty areas — cards/labels stop propagation
+  const onBoardMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!liftedCardIdRef.current) {
+      isDragging.current = true
+      dragStart.current = { x: e.clientX, y: e.clientY, panX: panRef.current.x, panY: panRef.current.y }
+    }
+  }, [])
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     handleMove(e.clientX, e.clientY)
   }, [handleMove])
 
-  const onMouseUp = useCallback((e: React.MouseEvent) => {
-    if ((e.target as Element).closest('[data-label-delete]')) { isDragging.current = false; return }
+  const onMouseUp = useCallback(() => {
     resolvePressEnd()
     isDragging.current = false
   }, [resolvePressEnd])
 
   const onMouseLeave = useCallback(() => {
-    if (liftedCardIdRef.current) {
-      const id = liftedCardIdRef.current
-      const pos = localPosRef.current[id]
-      liftedCardIdRef.current = null
-      setLiftedCardId(null)
-      if (pos) scheduleCardSave(id, pos.x, pos.y)
-    }
-    if (liftedLabelIdRef.current) {
-      const id = liftedLabelIdRef.current
-      const pos = localLabelPosRef.current[id]
-      liftedLabelIdRef.current = null
-      setLiftedLabelId(null)
-      if (pos) saveLabelPos(id, pos.x, pos.y)
-    }
-    cancelAllLongPress()
+    dropLifted()
+    cancelLongPress()
     isDragging.current = false
-  }, [cancelAllLongPress])
+  }, [dropLifted, cancelLongPress])
 
   // ── Touch handlers ──────────────────────────────────────────────────────
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    if ((e.target as Element).closest('[data-label-delete]')) return
-
+  // Board touchstart only fires on empty areas — cards/labels stop propagation
+  const onBoardTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      cancelAllLongPress()
+      cancelLongPress()
       isDragging.current = false
       const dx = e.touches[0].clientX - e.touches[1].clientX
       const dy = e.touches[0].clientY - e.touches[1].clientY
       lastPinchDist.current = Math.hypot(dx, dy)
       return
     }
-
-    if (e.touches.length === 1) {
+    if (e.touches.length === 1 && !liftedCardIdRef.current) {
       const t = e.touches[0]
-      const cardEl = (e.target as Element).closest('[data-dare-id]') as HTMLElement | null
-      const labelEl = (e.target as Element).closest('[data-label-id]') as HTMLElement | null
-
-      if (showDeleteLabelIdRef.current && !labelEl) {
-        setShowDeleteLabelId(null)
-        showDeleteLabelIdRef.current = null
-      }
-
-      if (cardEl) { startCardLongPress(cardEl.dataset.dareId!, t.clientX, t.clientY); return }
-      if (labelEl) { startLabelLongPress(labelEl.dataset.labelId!, t.clientX, t.clientY); return }
-      if (!liftedCardIdRef.current && !liftedLabelIdRef.current) {
-        isDragging.current = true
-        dragStart.current = { x: t.clientX, y: t.clientY, panX: panRef.current.x, panY: panRef.current.y }
-      }
+      isDragging.current = true
+      dragStart.current = { x: t.clientX, y: t.clientY, panX: panRef.current.x, panY: panRef.current.y }
     }
-  }, [startCardLongPress, startLabelLongPress, cancelAllLongPress])
+  }, [cancelLongPress])
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && lastPinchDist.current !== null) {
@@ -462,7 +397,6 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
   }, [handleMove, clampPan])
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    if ((e.target as Element).closest('[data-label-delete]')) return
     if (e.touches.length < 2) lastPinchDist.current = null
     if (e.touches.length === 0) {
       resolvePressEnd()
@@ -482,7 +416,7 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
     ? { backgroundColor: '#1a1710', backgroundImage: 'radial-gradient(circle, #2e2a20 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }
     : { backgroundColor: '#f0ebe0', backgroundImage: 'radial-gradient(circle, #cdc3ac 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }
 
-  const boardCursor = liftedCardId || liftedLabelId ? 'grabbing' : 'grab'
+  const boardCursor = liftedCardId ? 'grabbing' : 'grab'
 
   return (
     <>
@@ -535,18 +469,20 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
             touchAction: 'none',
             position: 'relative',
           }}
-          onMouseDown={onMouseDown}
+          onMouseDown={onBoardMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={onMouseLeave}
-          onTouchStart={onTouchStart}
+          onTouchStart={onBoardTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Inner canvas — 1400×1000, dot grid, scaled/translated */}
+          {/* Inner canvas — 2400×2000, dot grid, scaled/translated */}
           <div
             style={{
               position: 'absolute',
+              top: 0,
+              left: 0,
               width: CANVAS_WIDTH,
               height: CANVAS_HEIGHT,
               transformOrigin: 'top left',
@@ -567,6 +503,8 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
                   y={pos.y}
                   creator={creator}
                   isLifted={liftedCardId === dare.id}
+                  onMouseDown={e => { e.stopPropagation(); startLongPress(dare.id, e.clientX, e.clientY) }}
+                  onTouchStart={e => { e.stopPropagation(); startLongPress(dare.id, e.touches[0].clientX, e.touches[0].clientY) }}
                 />
               )
             })}
@@ -574,11 +512,13 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
             {/* Text labels */}
             {boardLabels.map(label => {
               const lpos = localLabelPos[label.id] ?? { x: label.x, y: label.y }
-              const isLabelLifted = liftedLabelId === label.id
+              const isLabelLifted = liftedCardId === `label-${label.id}`
               return (
                 <div
                   key={label.id}
                   data-label-id={label.id}
+                  onMouseDown={e => { e.stopPropagation(); startLongPress(`label-${label.id}`, e.clientX, e.clientY) }}
+                  onTouchStart={e => { e.stopPropagation(); startLongPress(`label-${label.id}`, e.touches[0].clientX, e.touches[0].clientY) }}
                   style={{
                     position: 'absolute',
                     left: lpos.x,
@@ -627,17 +567,21 @@ export function DaresBoard({ onAddDare }: DaresBoardProps) {
                     label.text
                   )}
 
-                  {showDeleteLabelId === label.id && (
+                  {/* × delete button — shown while label is lifted */}
+                  {isLabelLifted && (
                     <button
-                      data-label-delete="true"
-                      onClick={e => {
+                      onMouseDown={e => {
                         e.stopPropagation()
+                        liftedCardIdRef.current = null
+                        setLiftedCardId(null)
                         deleteBoardLabelRef.current(label.id)
-                        setShowDeleteLabelId(null)
-                        showDeleteLabelIdRef.current = null
                       }}
-                      onMouseDown={e => e.stopPropagation()}
-                      onTouchStart={e => e.stopPropagation()}
+                      onTouchStart={e => {
+                        e.stopPropagation()
+                        liftedCardIdRef.current = null
+                        setLiftedCardId(null)
+                        deleteBoardLabelRef.current(label.id)
+                      }}
                       style={{
                         position: 'absolute',
                         top: -10,

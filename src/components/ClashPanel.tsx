@@ -55,7 +55,6 @@ export function ClashPanel({ open, onClose }: ClashPanelProps) {
 
   // Pickable dares: user's own uncommitted dares not already in a clash
   const pickableDares = dares.filter(d =>
-    d.created_by === user?.id &&
     d.assigned_to !== 'self' &&
     d.status === 'pending'
   )
@@ -404,7 +403,7 @@ export function ClashPanel({ open, onClose }: ClashPanelProps) {
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 {pickableDares.length === 0 ? (
                   <p style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14, fontStyle: 'italic' }}>
-                    no available dares — add some first
+                    no dares yet — add one with +
                   </p>
                 ) : (
                   pickableDares.map(dare => (

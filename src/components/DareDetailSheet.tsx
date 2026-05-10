@@ -403,6 +403,11 @@ export function DareDetailSheet({ dare, onClose, onEdit, onReveal }: DareDetailS
                         </h2>
 
                         {theirTradeStatus === 'pending' && myTradeStatus === 'done' && (
+                          <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-sans)' }}>
+                            waiting for {partnerName}…
+                          </p>
+                        )}
+                        {theirTradeStatus === 'done' && myTradeStatus === 'pending' && (
                           <p style={{ fontSize: 13, color: 'var(--amber)', fontStyle: 'italic', fontFamily: 'var(--font-sans)' }}>
                             {partnerName} already did theirs — your turn 👀
                           </p>
