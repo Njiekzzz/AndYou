@@ -142,6 +142,19 @@ export interface Dare {
   creator_reaction?: string | null
   assignee_reaction?: string | null
   positions?: Record<string, { x: number; y: number }>
+  board_x?: number | null
+  board_y?: number | null
+  category?: string | null
+}
+
+export interface BoardLabel {
+  id: string
+  wall_id: string
+  text: string
+  x: number
+  y: number
+  created_by: string
+  created_at: string
 }
 
 export type ClashStatus = 'selecting' | 'pending_acceptance' | 'live' | 'completed' | 'cancelled'

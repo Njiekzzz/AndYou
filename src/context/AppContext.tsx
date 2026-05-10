@@ -13,7 +13,7 @@ import {
   savePolaroidStyle, loadPolaroidStyle,
   saveNotificationsEnabled, loadNotificationsEnabled,
 } from '../lib/storage'
-import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment, Dare, DareTarget, Clash } from '../types'
+import { BucketItem, User, Region, Reaction, Wall, UserProfile, SavedWall, DrawingStroke, WallSticker, PolaroidStyle, Comment, Dare, DareTarget, Clash, BoardLabel } from '../types'
 import { sendLocalNotification } from '../lib/notifications'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -105,7 +105,7 @@ interface AppContextType {
   deleteComment: (commentId: string) => Promise<void>
   uploadAudio: (blob: Blob) => Promise<string>
   dares: Dare[]
-  addDare: (data: { title: string; description?: string | null; assigned_to: DareTarget; due_date?: string | null; trade_title?: string | null; trade_description?: string | null }) => Promise<string>
+  addDare: (data: { title: string; description?: string | null; assigned_to: DareTarget; due_date?: string | null; trade_title?: string | null; trade_description?: string | null; category?: string | null }) => Promise<string>
   updateDare: (id: string, updates: Partial<Dare>) => Promise<void>
   deleteDare: (id: string) => Promise<void>
   completeDare: (id: string, asTradeCreator: boolean, photo?: string | null, note?: string | null) => Promise<void>
@@ -115,6 +115,10 @@ interface AppContextType {
   addClash: () => Promise<string>
   updateClash: (id: string, updates: Partial<Clash>) => Promise<void>
   deleteClash: (id: string) => Promise<void>
+  boardLabels: BoardLabel[]
+  addBoardLabel: (data: { text: string; x: number; y: number }) => Promise<string>
+  updateBoardLabel: (id: string, updates: Partial<BoardLabel>) => Promise<void>
+  deleteBoardLabel: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -139,6 +143,8 @@ const daresCol = (wallId: string) => collection(db, 'walls', wallId, 'dares')
 const dareDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'dares', id)
 const clashesCol = (wallId: string) => collection(db, 'walls', wallId, 'clashes')
 const clashDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'clashes', id)
+const boardLabelsCol = (wallId: string) => collection(db, 'walls', wallId, 'board_labels')
+const boardLabelDoc = (wallId: string, id: string) => doc(db, 'walls', wallId, 'board_labels', id)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser())
@@ -164,6 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dares, setDares] = useState<Dare[]>([])
   const prevDaresRef = useRef<Dare[]>([])
   const [clashes, setClashes] = useState<Clash[]>([])
+  const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([])
 
   const setItems = useCallback((updater: BucketItem[] | ((prev: BucketItem[]) => BucketItem[])) => {
     setItemsState(prev => {
@@ -390,6 +397,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setClashes(snap.docs.map(d => d.data() as Clash))
     })
 
+    const boardLabelsUnsub = onSnapshot(boardLabelsCol(wallId), snap => {
+      setBoardLabels(snap.docs.map(d => d.data() as BoardLabel))
+    })
+
     setIsLoading(false)
 
     return () => {
@@ -402,6 +413,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       commentsUnsub()
       daresUnsub()
       clashesUnsub()
+      boardLabelsUnsub()
     }
   }, [user?.id, setItems, setRegions])
 
@@ -746,7 +758,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await deleteDoc(commentDoc(wall.id, id))
   }, [wall])
 
-  const addDare = useCallback(async (data: { title: string; description?: string | null; assigned_to: DareTarget; due_date?: string | null; trade_title?: string | null; trade_description?: string | null }): Promise<string> => {
+  const addDare = useCallback(async (data: { title: string; description?: string | null; assigned_to: DareTarget; due_date?: string | null; trade_title?: string | null; trade_description?: string | null; category?: string | null }): Promise<string> => {
     if (!wall || !user) return ''
     const id = uuidv4()
     const newDare: Dare = {
@@ -760,6 +772,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       due_date: data.due_date ?? null,
       created_at: new Date().toISOString(),
       positions: {},
+      board_x: Math.random() * (1400 - 180) + 20,
+      board_y: Math.random() * (1000 - 180) + 20,
+      category: data.category ?? null,
       ...(data.assigned_to === 'trade' ? {
         trade_title: data.trade_title ?? null,
         trade_description: data.trade_description ?? null,
@@ -789,14 +804,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [wall])
 
   const updateDarePosition = useCallback(async (id: string, x: number, y: number) => {
-    if (!wall || !user) return
-    await updateDoc(dareDoc(wall.id, id), { [`positions.${user.id}`]: { x, y } })
-  }, [wall, user])
+    if (!wall) return
+    await updateDoc(dareDoc(wall.id, id), { board_x: x, board_y: y })
+  }, [wall])
 
   const setDareReaction = useCallback(async (id: string, asCreator: boolean, emoji: string) => {
     if (!wall) return
     const field = asCreator ? 'creator_reaction' : 'assignee_reaction'
     await updateDoc(dareDoc(wall.id, id), { [field]: emoji })
+  }, [wall])
+
+  const addBoardLabel = useCallback(async (data: { text: string; x: number; y: number }): Promise<string> => {
+    if (!wall || !user) return ''
+    const id = uuidv4()
+    const label: BoardLabel = {
+      id,
+      wall_id: wall.id,
+      text: data.text,
+      x: data.x,
+      y: data.y,
+      created_by: user.id,
+      created_at: new Date().toISOString(),
+    }
+    await setDoc(boardLabelDoc(wall.id, id), label)
+    return id
+  }, [wall, user])
+
+  const updateBoardLabel = useCallback(async (id: string, updates: Partial<BoardLabel>) => {
+    if (!wall) return
+    await updateDoc(boardLabelDoc(wall.id, id), updates as Record<string, unknown>)
+  }, [wall])
+
+  const deleteBoardLabel = useCallback(async (id: string) => {
+    if (!wall) return
+    await deleteDoc(boardLabelDoc(wall.id, id))
   }, [wall])
 
   const addClash = useCallback(async (): Promise<string> => {
@@ -887,6 +928,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       comments, addComment, deleteComment, uploadAudio,
       dares, addDare, updateDare, deleteDare, completeDare, updateDarePosition, setDareReaction,
       clashes, addClash, updateClash, deleteClash,
+      boardLabels, addBoardLabel, updateBoardLabel, deleteBoardLabel,
     }}>
       {children}
     </AppContext.Provider>

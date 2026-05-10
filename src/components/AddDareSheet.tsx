@@ -21,6 +21,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
   const [tradeTitle, setTradeTitle] = useState('')
   const [tradeDescription, setTradeDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [category, setCategory] = useState('')
   const [saving, setSaving] = useState(false)
 
   const touchStartY = useRef(0)
@@ -36,6 +37,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
         setTradeTitle(editDare.trade_title ?? '')
         setTradeDescription(editDare.trade_description ?? '')
         setDueDate(editDare.due_date ?? '')
+        setCategory(editDare.category ?? '')
       } else {
         setTitle('')
         setDescription('')
@@ -43,6 +45,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
         setTradeTitle('')
         setTradeDescription('')
         setDueDate('')
+        setCategory('')
       }
     }
   }, [open, editDare, partner])
@@ -59,6 +62,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
           description: description.trim() || null,
           assigned_to: assignedTo,
           due_date: dueDate || null,
+          category: category.trim() || null,
           trade_title: assignedTo === 'trade' ? (tradeTitle.trim() || null) : null,
           trade_description: assignedTo === 'trade' ? (tradeDescription.trim() || null) : null,
           // Clear change request on resubmit
@@ -70,6 +74,7 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
           description: description.trim() || null,
           assigned_to: assignedTo,
           due_date: dueDate || null,
+          category: category.trim() || null,
           trade_title: assignedTo === 'trade' ? (tradeTitle.trim() || null) : null,
           trade_description: assignedTo === 'trade' ? (tradeDescription.trim() || null) : null,
         })
@@ -240,13 +245,26 @@ export function AddDareSheet({ open, onClose, editDareId }: AddDareSheetProps) {
                 </div>
 
                 {/* Due date */}
-                <div style={{ marginBottom: 8 }}>
+                <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>due date (optional)</label>
                   <input
                     type="date"
                     value={dueDate}
                     onChange={e => setDueDate(e.target.value)}
                     style={{ width: '100%', fontSize: 14, padding: '10px 12px', borderRadius: 10, boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                {/* Category */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>category (optional)</label>
+                  <input
+                    type="text"
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                    placeholder="e.g. silly, romantic, this week"
+                    maxLength={40}
+                    style={{ width: '100%', fontSize: 15, padding: '11px 12px', borderRadius: 10, boxSizing: 'border-box' }}
                   />
                 </div>
 
